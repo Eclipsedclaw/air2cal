@@ -1,2 +1,2 @@
 # air2cal
-generate ics file from airflight tickects information
+generate from airflight tickects information to calendar ics file
