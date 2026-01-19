@@ -9,3 +9,11 @@ Simple as run:
 ```bash
 python3 main.py
 ```
+
+One example of generating process demonstrated as below:
+
+<img width="528" height="1155" alt="Screenshot 2026-01-19 at 12 29 33 PM" src="https://github.com/user-attachments/assets/850cf334-c4f9-4f13-b283-3dd5769dcbe7" />
+
+After imported the ics file to outlook calendar it will look like this:
+
+<img width="878" height="415" alt="Screenshot 2026-01-19 at 12 36 47 PM" src="https://github.com/user-attachments/assets/d1ba3706-975f-4232-b68e-ab20474720dc" />
