@@ -141,15 +141,11 @@ function attachSuggestions(inputEl, suggContainer) {
     if (!it) return;
     inputEl.value = `${it.code} — ${it.city}${it.name ? ` (${it.name})` : ''}`;
     const tzField = inputEl.id && inputEl.id.includes('departure') ? document.getElementById('departure_timezone') : document.getElementById('arrival_timezone');
-    // if the inputEl has a neighboring timezone input (in inline form it may not have id'd timezone),
-    // attempt to find a sibling tz input
+    // fallback: attempt to find sibling timezone input in inline layout
     let localTzField = tzField;
     if (!localTzField) {
-      // look for next input[type=text] with class 'tz-field' in same parent
-      const parent = inputEl.parentElement;
-      if (parent) {
-        localTzField = parent.querySelector('.tz-field');
-      }
+      const p = inputEl.parentElement;
+      if (p) localTzField = p.querySelector('.tz-field');
     }
     if (localTzField && it.tz) localTzField.value = it.tz;
     hideSuggestions();
@@ -297,7 +293,7 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('saveAndAddAnother').addEventListener('click', () => saveFlight(true));
   document.getElementById('generate').addEventListener('click', generateIcs);
 
-  // Autofill tz on blur if user typed only a code (modal fields)
+  // Autofill tz on blur for modal fields
   [fld.departure_airport, fld.arrival_airport].forEach(input => {
     input.addEventListener('blur', (e) => {
       const code = extractCode(e.target.value);
@@ -325,6 +321,11 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function openModalForEdit(idx) {
+    // open modal only for non-first flights (index > 0)
+    if (idx === 0 && flights[0] && flights[0].placeholder) {
+      // Do nothing — first flight uses inline form
+      return;
+    }
     editingIndex = idx;
     const f = flights[idx];
     modalTitle.textContent = f.placeholder ? 'Fill First Flight' : 'Edit Flight';
@@ -427,7 +428,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     flights.forEach((f, i) => {
       if (i === 0 && f.placeholder) {
-        // Render inline first-flight form
+        // Render inline first-flight form (no Edit button)
         const formWrap = document.createElement('div');
         formWrap.className = 'first-flight-form';
 
@@ -449,18 +450,18 @@ document.addEventListener('DOMContentLoaded', () => {
           return label;
         };
 
-        // Inputs (no conflicting IDs) — we'll add class names so we can find them
+        // Inputs (no conflicting IDs) — use classes so they don't collide with modal IDs
         const inpFlightNum = document.createElement('input');
         inpFlightNum.type = 'text';
         inpFlightNum.className = 'ff-flight-number';
         inpFlightNum.placeholder = 'e.g., HA850, NH976';
-        inpFlightNum.value = f.flight_number === '(new flight)' ? '' : (f.flight_number || '');
+        inpFlightNum.value = '';
 
         const inpPassenger = document.createElement('input');
         inpPassenger.type = 'text';
         inpPassenger.className = 'ff-passenger';
         inpPassenger.placeholder = 'Passenger name';
-        inpPassenger.value = f.passenger_name === '(click Edit)' ? '' : (f.passenger_name || '');
+        inpPassenger.value = '';
 
         const depInput = document.createElement('input');
         depInput.type = 'text';
@@ -480,13 +481,13 @@ document.addEventListener('DOMContentLoaded', () => {
         const depDate = document.createElement('input');
         depDate.type = 'date';
         depDate.className = 'ff-departure-date';
-        depDate.value = f.departure_date || today;
+        depDate.value = today;
 
         const depTime = document.createElement('input');
         depTime.type = 'time';
         depTime.className = 'ff-departure-time';
         depTime.step = 900;
-        depTime.value = f.departure_time || roundedNow;
+        depTime.value = roundedNow;
 
         const arrInput = document.createElement('input');
         arrInput.type = 'text';
@@ -506,31 +507,28 @@ document.addEventListener('DOMContentLoaded', () => {
         const arrDate = document.createElement('input');
         arrDate.type = 'date';
         arrDate.className = 'ff-arrival-date';
-        arrDate.value = f.arrival_date || today;
+        arrDate.value = today;
 
         const arrTime = document.createElement('input');
         arrTime.type = 'time';
         arrTime.className = 'ff-arrival-time';
         arrTime.step = 900;
-        arrTime.value = f.arrival_time || roundedNow;
+        arrTime.value = roundedNow;
 
         const seatInp = document.createElement('input');
         seatInp.type = 'text';
         seatInp.className = 'ff-seat';
         seatInp.placeholder = '12A';
-        seatInp.value = f.seat || '';
 
         const classInp = document.createElement('input');
         classInp.type = 'text';
         classInp.className = 'ff-class';
         classInp.placeholder = 'Economy';
-        classInp.value = f.class || '';
 
         const bagInp = document.createElement('input');
         bagInp.type = 'text';
         bagInp.className = 'ff-baggage';
         bagInp.placeholder = '1 carry-on, 1 checked';
-        bagInp.value = f.baggage || '';
 
         // Append layout
         const grid = document.createElement('div');
@@ -639,8 +637,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
           const depCombined = `${departure_date} ${departure_time}`;
           const arrCombined = `${arrival_date} ${arrival_time}`;
-          const dtDep = DateTime.fromFormat(depCombined, 'yyyy-LL-dd HH:mm', {zone: departure_timezone || 'UTC'});
-          const dtArr = DateTime.fromFormat(arrCombined, 'yyyy-LL-dd HH:mm', {zone: arrival_timezone || 'UTC'});
+          const dtDep = DateTime.fromFormat(depCombined, 'yyyy-LL-dd HH:mm', {zone: departure_timezone || (AIRPORTS[departure_airport] ? AIRPORTS[departure_airport].tz : 'UTC')});
+          const dtArr = DateTime.fromFormat(arrCombined, 'yyyy-LL-dd HH:mm', {zone: arrival_timezone || (AIRPORTS[arrival_airport] ? AIRPORTS[arrival_airport].tz : 'UTC')});
           if (!dtDep.isValid) { alert('Departure date/time is invalid.'); return; }
           if (!dtArr.isValid) { alert('Arrival date/time is invalid.'); return; }
 
@@ -678,7 +676,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return; // done rendering for placeholder
       }
 
-      // Non-placeholder flight entry summary
+      // Non-placeholder flight entry summary (for index > 0 or after placeholder replaced)
       const item = document.createElement('div');
       item.className = 'flight-summary';
 
