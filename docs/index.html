@@ -3,33 +3,104 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Flight → .ics Generator</title>
+  <title>Air2Cal Flight Calendar Generator</title>
   <link rel="stylesheet" href="styles.css">
   <!-- Luxon for timezone-aware date handling -->
   <script src="https://cdn.jsdelivr.net/npm/luxon@3/build/global/luxon.min.js"></script>
 </head>
 <body>
   <main class="container">
-    <h1>Flight → .ics Generator</h1>
-    <p>Enter one or more flights. Choose the timezone for each airport, then Generate .ics to download a calendar file.</p>
+    <h1>Air2Cal Flight Calendar Generator</h1>
+    <p>Click "Add flight" to enter flight details. Timezones auto-fill from the built-in airport map when possible.</p>
 
-    <div id="flights"></div>
+    <div id="flights" aria-live="polite"></div>
 
-    <button id="addFlight">+ Add flight</button>
     <div class="actions">
+      <button id="addFlight">+ Add flight</button>
       <button id="generate">Generate .ics</button>
-      <a id="downloadLink" style="display:none">Download .ics</a>
+      <a id="downloadLink" style="display:none"></a>
     </div>
 
-    <details>
+    <details style="margin-top:12px">
       <summary>Notes</summary>
       <ul>
-        <li>Site is static; everything runs in your browser (no server).</li>
-        <li>If you want full timezone conversions, pick a correct IANA timezne (e.g., America/New_York).</li>
+        <li>Everything runs in your browser — no server required.</li>
+        <li>Timezones are IANA values (e.g., America/New_York). If an airport isn't in the built-in list you'll be able to type the timezone manually.</li>
       </ul>
     </details>
   </main>
 
+  <!-- Modal container (pop-out form) -->
+  <div id="modalOverlay" class="modal-overlay" aria-hidden="true" style="display:none">
+    <div class="modal">
+      <h2 id="modalTitle">Add Flight</h2>
+
+      <form id="flightForm" autocomplete="off">
+        <label>Flight number (e.g., HA850, NH976)
+          <input type="text" id="flight_number" required />
+        </label>
+
+        <label>Passenger name
+          <input type="text" id="passenger_name" required />
+        </label>
+
+        <fieldset class="section">
+          <legend>🛫 DEPARTURE</legend>
+
+          <label>Departure airport code (e.g., KIX, JFK)
+            <input type="text" id="departure_airport" maxlength="4" />
+          </label>
+
+          <label>Departure timezone (auto-filled if known)
+            <input type="text" id="departure_timezone" placeholder="e.g., America/New_York" />
+          </label>
+
+          <label>Departure date & time (YYYY-MM-DD HH:MM)
+            <input type="text" id="departure_time" placeholder="2026-01-22 09:30" />
+          </label>
+        </fieldset>
+
+        <fieldset class="section">
+          <legend>🛬 ARRIVAL</legend>
+
+          <label>Arrival airport code (e.g., HNL, LAX)
+            <input type="text" id="arrival_airport" maxlength="4" />
+          </label>
+
+          <label>Arrival timezone (auto-filled if known)
+            <input type="text" id="arrival_timezone" placeholder="e.g., Pacific/Honolulu" />
+          </label>
+
+          <label>Arrival date & time (YYYY-MM-DD HH:MM)
+            <input type="text" id="arrival_time" placeholder="2026-01-22 20:00" />
+          </label>
+        </fieldset>
+
+        <fieldset class="section">
+          <legend>📝 ADDITIONAL DETAILS (optional)</legend>
+
+          <label>Seat assignment
+            <input type="text" id="seat" placeholder="12A" />
+          </label>
+
+          <label>Class (Economy/Business/First)
+            <input type="text" id="class" placeholder="Economy" />
+          </label>
+
+          <label>Baggage allowance
+            <input type="text" id="baggage" placeholder="1 carry-on, 1 checked" />
+          </label>
+        </fieldset>
+
+        <div class="modal-actions">
+          <button type="button" id="saveFlight">Save flight</button>
+          <button type="button" id="saveAndAddAnother">Save & add another</button>
+          <button type="button" id="cancelFlight" class="secondary">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <script src="script.js"></script>
 </body>
-</html>o
+</html>
