@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Flight → .ics Generator</title>
+  <link rel="stylesheet" href="styles.css">
+  <!-- Luxon for timezone-aware date handling -->
+  <script src="https://cdn.jsdelivr.net/npm/luxon@3/build/global/luxon.min.js"></script>
+</head>
+<body>
+  <main class="container">
+    <h1>Flight → .ics Generator</h1>
+    <p>Enter one or more flights. Choose the timezone for each airport, then Generate .ics to download a calendar file.</p>
+
+    <div id="flights"></div>
+
+    <button id="addFlight">+ Add flight</button>
+    <div class="actions">
+      <button id="generate">Generate .ics</button>
+      <a id="downloadLink" style="display:none">Download .ics</a>
+    </div>
+
+    <details>
+      <summary>Notes</summary>
+      <ul>
+        <li>Site is static; everything runs in your browser (no server).</li>
+        <li>If you want full timezone conversions, pick a correct IANA timezne (e.g., America/New_York).</li>
+      </ul>
+    </details>
+  </main>
+
+  <script src="script.js"></script>
+</body>
+</html>o
