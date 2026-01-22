@@ -1,32 +1,3 @@
-:root{
-  --bg:#fafafa;
-  --card:#fff;
-  --accent:#0b69ff;
-  --muted:#666;
-  --danger:#ff4d4f;
-  --suggest-bg:#fff;
-  --suggest-border:rgba(0,0,0,0.08);
-}
-
-*{ box-sizing:border-box }
-
-body{
-  font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;
-  background:var(--bg);
-  margin:0;
-  padding:24px;
-  color:#111;
-}
-
-.container{
-  max-width:980px;
-  margin:0 auto;
-}
-
-h1{ margin:0 0 8px }
-
-#flights{ margin-top:12px }
-
 .flight-summary{
   background:var(--card);
   border-radius:8px;
@@ -39,23 +10,13 @@ h1{ margin:0 0 8px }
   gap:12px;
   align-items:center;
 }
+.flight-summary .meta{flex:1}
+.flight-summary .actions{display:flex;gap:8px}
 
-.flight-summary .meta{ flex:1 }
-.flight-summary .actions{ display:flex; gap:8px }
-
-button{
-  background:var(--accent);
-  color:#fff;
-  border:0;
-  padding:10px 14px;
-  border-radius:8px;
-  cursor:pointer;
-}
-
-button.secondary{ background:#e9e9e9; color:#111 }
-button.danger{ background:var(--danger) }
-
-small{ color:var(--muted) }
+button{background:var(--accent);color:#fff;border:0;padding:10px 14px;border-radius:8px;cursor:pointer}
+button.secondary{background:#e9e9e9;color:#111}
+button.danger{background:var(--danger)}
+small{color:var(--muted)}
 
 .modal-overlay{
   position:fixed;
@@ -66,7 +27,6 @@ small{ color:var(--muted) }
   justify-content:center;
   z-index:1000;
 }
-
 .modal{
   width:920px;
   max-width:95%;
@@ -77,35 +37,15 @@ small{ color:var(--muted) }
   max-height:90vh;
   overflow:auto;
 }
+.modal h2{margin-top:0}
 
-.modal h2{ margin-top:0 }
-
-form label{
-  display:block;
-  margin-bottom:8px;
-}
-
-/* INPUTS */
-form input[type="text"],
-form input[type="date"],
-form input[type="time"],
-form select{
+form label{display:block;margin-bottom:8px}
+form input[type="text"], form input[type="date"], form input[type="time"], form select{
   width:100%;
   padding:8px;
   border:1px solid #ddd;
   border-radius:6px;
   margin-top:6px;
-}
-
-/* 🔽 OPTION 2 FIX */
-.row{
-  display:flex;
-  gap:8px;
-  flex-wrap:wrap;
-}
-
-.row > label{
-  flex: 0 0 100%;
 }
 
 /* suggestion dropdown */
@@ -121,41 +61,29 @@ form select{
   z-index:1010;
   box-shadow: 0 6px 18px rgba(0,0,0,0.08);
 }
-
-.suggestions[aria-hidden="false"]{ display:block }
-
+.suggestions[aria-hidden="false"]{ display:block; }
 .suggestions .suggestion{
   padding:8px 10px;
   cursor:pointer;
   border-bottom:1px solid rgba(0,0,0,0.03);
 }
-
-.suggestions .suggestion:last-child{ border-bottom:0 }
-
+.suggestions .suggestion:last-child{ border-bottom: 0; }
 .suggestions .suggestion:hover,
 .suggestions .suggestion.active{
-  background:#f0f6ff;
+  background: #f0f6ff;
 }
-
-.suggestion .code{
-  font-weight:600;
-  margin-right:8px;
-  color:#111;
-}
-
-.suggestion .meta{
-  color:var(--muted);
-  font-size:13px;
-}
+.suggestion .code{ font-weight:600; margin-right:8px; color:#111; }
+.suggestion .meta{ color:var(--muted); font-size:13px; }
 
 /* make native time input visually consistent */
 input[type="time"]{
-  -webkit-appearance:none;
-  appearance:none;
-  padding-right:8px;
+  -webkit-appearance: none;
+  appearance: none;
+  padding-right: 8px;
 }
 
 /* small-layout helpers */
+.row{display:flex;gap:8px;flex-wrap:wrap}
 .section{
   border:1px solid #f0f0f0;
   padding:10px;
@@ -175,3 +103,37 @@ input[type="time"]{
   .modal{ padding:12px; }
   .row{ flex-direction:column; }
 }
+
+/* Styles for the inline "first flight" form rendered on the main page.
+   The JS creates .first-flight-form outside of a <form>, so the generic
+   `form label` rules don't apply. Make labels block-level and inputs full width,
+   and lay out inputs in a simple responsive grid. */
+
+.first-flight-form label {
+  display: block;
+  margin-bottom: 8px;
+}
+
+.first-flight-form input[type="text"],
+.first-flight-form input[type="date"],
+.first-flight-form input[type="time"],
+.first-flight-form select {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  margin-top: 6px;
+  box-sizing: border-box;
+}
+
+/* A simple responsive grid for grouped fields; min column width keeps fields usable on narrow screens */
+.first-flight-form .ff-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 8px;
+  align-items: start;
+}
+
+/* small layout polishing */
+.first-flight-form .muted { margin-bottom: 12px; }
+.first-flight-form .suggestions { position: relative; z-index: 1010; }
