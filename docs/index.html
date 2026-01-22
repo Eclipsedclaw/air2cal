@@ -25,6 +25,7 @@
       <summary>Notes</summary>
       <ul>
         <li>Everything runs in your browser — no server required.</li>
+        <li>Date uses a native date picker. Time uses a rolling dropdown from 00:00 → 23:59 (minute resolution).</li>
         <li>Timezones are IANA values (e.g., America/New_York). If an airport isn't in the built-in list you'll be able to type the timezone manually.</li>
       </ul>
     </details>
@@ -32,7 +33,7 @@
 
   <!-- Modal container (pop-out form) -->
   <div id="modalOverlay" class="modal-overlay" aria-hidden="true" style="display:none">
-    <div class="modal">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
       <h2 id="modalTitle">Add Flight</h2>
 
       <form id="flightForm" autocomplete="off">
@@ -55,9 +56,15 @@
             <input type="text" id="departure_timezone" placeholder="e.g., America/New_York" />
           </label>
 
-          <label>Departure date & time (YYYY-MM-DD HH:MM)
-            <input type="text" id="departure_time" placeholder="2026-01-22 09:30" />
-          </label>
+          <div class="row small-gaps">
+            <label>Departure date
+              <input type="date" id="departure_date" />
+            </label>
+
+            <label>Departure time
+              <select id="departure_time_select" aria-label="Departure time"></select>
+            </label>
+          </div>
         </fieldset>
 
         <fieldset class="section">
@@ -71,9 +78,15 @@
             <input type="text" id="arrival_timezone" placeholder="e.g., Pacific/Honolulu" />
           </label>
 
-          <label>Arrival date & time (YYYY-MM-DD HH:MM)
-            <input type="text" id="arrival_time" placeholder="2026-01-22 20:00" />
-          </label>
+          <div class="row small-gaps">
+            <label>Arrival date
+              <input type="date" id="arrival_date" />
+            </label>
+
+            <label>Arrival time
+              <select id="arrival_time_select" aria-label="Arrival time"></select>
+            </label>
+          </div>
         </fieldset>
 
         <fieldset class="section">
