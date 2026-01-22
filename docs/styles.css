@@ -123,13 +123,12 @@ input[type="time"]{
 
 .actions-wrapper {
   display: flex;
-  flex-direction: column !important; /* FORCE vertical stacking */
-  align-items: flex-start;
+  flex-direction: column;
+  gap: 16px; /* space between rows */
 }
 
-.actions-left {
-  display: flex;
-  gap: 20px;
+.actions-output {
+  align-self: flex-start; /* align under both buttons */
 }
 
 /* Responsive */
