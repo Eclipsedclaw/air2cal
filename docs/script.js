@@ -140,8 +140,18 @@ function attachSuggestions(inputEl, suggContainer) {
     const it = currentItems[idx];
     if (!it) return;
     inputEl.value = `${it.code} — ${it.city}${it.name ? ` (${it.name})` : ''}`;
-    const tzField = inputEl.id.includes('departure') ? document.getElementById('departure_timezone') : document.getElementById('arrival_timezone');
-    if (tzField && it.tz) tzField.value = it.tz;
+    const tzField = inputEl.id && inputEl.id.includes('departure') ? document.getElementById('departure_timezone') : document.getElementById('arrival_timezone');
+    // if the inputEl has a neighboring timezone input (in inline form it may not have id'd timezone),
+    // attempt to find a sibling tz input
+    let localTzField = tzField;
+    if (!localTzField) {
+      // look for next input[type=text] with class 'tz-field' in same parent
+      const parent = inputEl.parentElement;
+      if (parent) {
+        localTzField = parent.querySelector('.tz-field');
+      }
+    }
+    if (localTzField && it.tz) localTzField.value = it.tz;
     hideSuggestions();
     inputEl.focus();
   }
@@ -276,7 +286,7 @@ document.addEventListener('DOMContentLoaded', () => {
     baggage: document.getElementById('baggage'),
   };
 
-  // Attach suggestion handlers for both airport inputs
+  // Attach suggestion handlers for modal inputs (for adding additional flights via modal)
   attachSuggestions(fld.departure_airport, document.getElementById('departure_suggestions'));
   attachSuggestions(fld.arrival_airport, document.getElementById('arrival_suggestions'));
 
@@ -287,7 +297,7 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('saveAndAddAnother').addEventListener('click', () => saveFlight(true));
   document.getElementById('generate').addEventListener('click', generateIcs);
 
-  // Autofill tz on blur if user typed only a code
+  // Autofill tz on blur if user typed only a code (modal fields)
   [fld.departure_airport, fld.arrival_airport].forEach(input => {
     input.addEventListener('blur', (e) => {
       const code = extractCode(e.target.value);
@@ -410,27 +420,277 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  // RENDER: if first flight is placeholder, render an inline form on the main page
   function renderFlights() {
     const container = document.getElementById('flights');
     container.innerHTML = '';
+
     flights.forEach((f, i) => {
+      if (i === 0 && f.placeholder) {
+        // Render inline first-flight form
+        const formWrap = document.createElement('div');
+        formWrap.className = 'first-flight-form';
+
+        const title = document.createElement('h2');
+        title.textContent = 'Fill First Flight (required)';
+        formWrap.appendChild(title);
+
+        const note = document.createElement('p');
+        note.className = 'muted';
+        note.textContent = 'You must fill the first flight before exporting. Start typing airport codes to get suggestions.';
+        formWrap.appendChild(note);
+
+        // Helper to create labeled input
+        const mkLabel = (labelText, inputEl) => {
+          const label = document.createElement('label');
+          label.textContent = labelText;
+          label.appendChild(document.createElement('br'));
+          label.appendChild(inputEl);
+          return label;
+        };
+
+        // Inputs (no conflicting IDs) — we'll add class names so we can find them
+        const inpFlightNum = document.createElement('input');
+        inpFlightNum.type = 'text';
+        inpFlightNum.className = 'ff-flight-number';
+        inpFlightNum.placeholder = 'e.g., HA850, NH976';
+        inpFlightNum.value = f.flight_number === '(new flight)' ? '' : (f.flight_number || '');
+
+        const inpPassenger = document.createElement('input');
+        inpPassenger.type = 'text';
+        inpPassenger.className = 'ff-passenger';
+        inpPassenger.placeholder = 'Passenger name';
+        inpPassenger.value = f.passenger_name === '(click Edit)' ? '' : (f.passenger_name || '');
+
+        const depInput = document.createElement('input');
+        depInput.type = 'text';
+        depInput.className = 'ff-departure-airport airport-input';
+        depInput.placeholder = 'e.g., KIX, JFK';
+
+        const depSugg = document.createElement('div');
+        depSugg.className = 'suggestions';
+        depSugg.setAttribute('role', 'listbox');
+        depSugg.setAttribute('aria-hidden', 'true');
+
+        const depTz = document.createElement('input');
+        depTz.type = 'text';
+        depTz.className = 'ff-departure-tz tz-field';
+        depTz.placeholder = 'Departure timezone';
+
+        const depDate = document.createElement('input');
+        depDate.type = 'date';
+        depDate.className = 'ff-departure-date';
+        depDate.value = f.departure_date || today;
+
+        const depTime = document.createElement('input');
+        depTime.type = 'time';
+        depTime.className = 'ff-departure-time';
+        depTime.step = 900;
+        depTime.value = f.departure_time || roundedNow;
+
+        const arrInput = document.createElement('input');
+        arrInput.type = 'text';
+        arrInput.className = 'ff-arrival-airport airport-input';
+        arrInput.placeholder = 'e.g., HNL, LAX';
+
+        const arrSugg = document.createElement('div');
+        arrSugg.className = 'suggestions';
+        arrSugg.setAttribute('role', 'listbox');
+        arrSugg.setAttribute('aria-hidden', 'true');
+
+        const arrTz = document.createElement('input');
+        arrTz.type = 'text';
+        arrTz.className = 'ff-arrival-tz tz-field';
+        arrTz.placeholder = 'Arrival timezone';
+
+        const arrDate = document.createElement('input');
+        arrDate.type = 'date';
+        arrDate.className = 'ff-arrival-date';
+        arrDate.value = f.arrival_date || today;
+
+        const arrTime = document.createElement('input');
+        arrTime.type = 'time';
+        arrTime.className = 'ff-arrival-time';
+        arrTime.step = 900;
+        arrTime.value = f.arrival_time || roundedNow;
+
+        const seatInp = document.createElement('input');
+        seatInp.type = 'text';
+        seatInp.className = 'ff-seat';
+        seatInp.placeholder = '12A';
+        seatInp.value = f.seat || '';
+
+        const classInp = document.createElement('input');
+        classInp.type = 'text';
+        classInp.className = 'ff-class';
+        classInp.placeholder = 'Economy';
+        classInp.value = f.class || '';
+
+        const bagInp = document.createElement('input');
+        bagInp.type = 'text';
+        bagInp.className = 'ff-baggage';
+        bagInp.placeholder = '1 carry-on, 1 checked';
+        bagInp.value = f.baggage || '';
+
+        // Append layout
+        const grid = document.createElement('div');
+        grid.className = 'ff-grid';
+
+        grid.appendChild(mkLabel('Flight number', inpFlightNum));
+        grid.appendChild(mkLabel('Passenger name', inpPassenger));
+
+        const depFieldset = document.createElement('fieldset');
+        depFieldset.className = 'section';
+        depFieldset.appendChild(document.createElement('legend')).textContent = '🛫 DEPARTURE';
+        depFieldset.appendChild(mkLabel('Departure airport (code, city or name)', depInput));
+        depFieldset.appendChild(depSugg);
+        depFieldset.appendChild(mkLabel('Departure timezone (auto-filled if known)', depTz));
+        const depRow = document.createElement('div');
+        depRow.className = 'row';
+        depRow.appendChild(mkLabel('Departure date', depDate));
+        depRow.appendChild(mkLabel('Departure time', depTime));
+        depFieldset.appendChild(depRow);
+
+        const arrFieldset = document.createElement('fieldset');
+        arrFieldset.className = 'section';
+        arrFieldset.appendChild(document.createElement('legend')).textContent = '🛬 ARRIVAL';
+        arrFieldset.appendChild(mkLabel('Arrival airport (code, city or name)', arrInput));
+        arrFieldset.appendChild(arrSugg);
+        arrFieldset.appendChild(mkLabel('Arrival timezone (auto-filled if known)', arrTz));
+        const arrRow = document.createElement('div');
+        arrRow.className = 'row';
+        arrRow.appendChild(mkLabel('Arrival date', arrDate));
+        arrRow.appendChild(mkLabel('Arrival time', arrTime));
+        arrFieldset.appendChild(arrRow);
+
+        const addFieldset = document.createElement('fieldset');
+        addFieldset.className = 'section';
+        addFieldset.appendChild(document.createElement('legend')).textContent = '📝 ADDITIONAL DETAILS (optional)';
+        addFieldset.appendChild(mkLabel('Seat assignment', seatInp));
+        addFieldset.appendChild(mkLabel('Class (Economy/Business/First)', classInp));
+        addFieldset.appendChild(mkLabel('Baggage allowance', bagInp));
+
+        const controls = document.createElement('div');
+        controls.className = 'modal-actions';
+        const saveBtn = document.createElement('button');
+        saveBtn.type = 'button';
+        saveBtn.textContent = 'Save first flight';
+        const saveAddBtn = document.createElement('button');
+        saveAddBtn.type = 'button';
+        saveAddBtn.textContent = 'Save & add another';
+        const cancelBtn = document.createElement('button');
+        cancelBtn.type = 'button';
+        cancelBtn.textContent = 'Keep placeholder';
+        cancelBtn.className = 'secondary';
+
+        controls.appendChild(saveBtn);
+        controls.appendChild(saveAddBtn);
+        controls.appendChild(cancelBtn);
+
+        formWrap.appendChild(grid);
+        formWrap.appendChild(depFieldset);
+        formWrap.appendChild(arrFieldset);
+        formWrap.appendChild(addFieldset);
+        formWrap.appendChild(controls);
+
+        container.appendChild(formWrap);
+
+        // Attach suggestion logic to the inline inputs
+        attachSuggestions(depInput, depSugg);
+        attachSuggestions(arrInput, arrSugg);
+
+        // Auto-fill tz on blur for inline inputs
+        depInput.addEventListener('blur', (e) => {
+          const code = extractCode(e.target.value);
+          if (code && AIRPORTS[code]) depTz.value = AIRPORTS[code].tz || '';
+        });
+        arrInput.addEventListener('blur', (e) => {
+          const code = extractCode(e.target.value);
+          if (code && AIRPORTS[code]) arrTz.value = AIRPORTS[code].tz || '';
+        });
+
+        // Save behavior
+        function collectAndSave(alsoOpenModalForNew) {
+          const flight_number = inpFlightNum.value.trim();
+          const passenger_name = inpPassenger.value.trim();
+          const departure_airport = extractCode(depInput.value.trim());
+          const departure_timezone = depTz.value.trim();
+          const departure_date = depDate.value;
+          const departure_time = depTime.value;
+          const arrival_airport = extractCode(arrInput.value.trim());
+          const arrival_timezone = arrTz.value.trim();
+          const arrival_date = arrDate.value;
+          const arrival_time = arrTime.value;
+          const seat = seatInp.value.trim();
+          const flight_class = classInp.value.trim();
+          const baggage = bagInp.value.trim();
+
+          // validate required fields
+          const missing = [];
+          if (!flight_number) missing.push('Flight number');
+          if (!passenger_name) missing.push('Passenger name');
+          if (!departure_airport || !departure_date || !departure_time) missing.push('Departure airport, date & time');
+          if (!arrival_airport || !arrival_date || !arrival_time) missing.push('Arrival airport, date & time');
+
+          if (missing.length) {
+            alert('Please fill required fields:\n- ' + missing.join('\n- '));
+            return;
+          }
+
+          const depCombined = `${departure_date} ${departure_time}`;
+          const arrCombined = `${arrival_date} ${arrival_time}`;
+          const dtDep = DateTime.fromFormat(depCombined, 'yyyy-LL-dd HH:mm', {zone: departure_timezone || 'UTC'});
+          const dtArr = DateTime.fromFormat(arrCombined, 'yyyy-LL-dd HH:mm', {zone: arrival_timezone || 'UTC'});
+          if (!dtDep.isValid) { alert('Departure date/time is invalid.'); return; }
+          if (!dtArr.isValid) { alert('Arrival date/time is invalid.'); return; }
+
+          const flight = {
+            flight_number,
+            passenger_name,
+            departure_airport,
+            departure_timezone: departure_timezone || (AIRPORTS[departure_airport] ? AIRPORTS[departure_airport].tz : 'UTC'),
+            departure_date, departure_time,
+            arrival_airport,
+            arrival_timezone: arrival_timezone || (AIRPORTS[arrival_airport] ? AIRPORTS[arrival_airport].tz : 'UTC'),
+            arrival_date, arrival_time,
+            seat, class: flight_class, baggage,
+            departure_time_combined: depCombined,
+            arrival_time_combined: arrCombined
+          };
+
+          // Replace placeholder with real flight
+          flights[i] = flight;
+          renderFlights();
+
+          // Optionally open modal for adding another flight
+          if (alsoOpenModalForNew) {
+            openModalForNew();
+          }
+        }
+
+        saveBtn.addEventListener('click', () => collectAndSave(false));
+        saveAddBtn.addEventListener('click', () => collectAndSave(true));
+        cancelBtn.addEventListener('click', () => {
+          // keep the placeholder — simply re-render to restore summary
+          renderFlights();
+        });
+
+        return; // done rendering for placeholder
+      }
+
+      // Non-placeholder flight entry summary
       const item = document.createElement('div');
       item.className = 'flight-summary';
 
       const meta = document.createElement('div');
       meta.className = 'meta';
 
-      if (f.placeholder) {
-        meta.innerHTML = `<strong style="opacity:.9">First flight (required)</strong><br>
-                          <small style="color:var(--muted)">Click <em>Edit</em> to enter the first flight's details.</small>`;
-      } else {
-        const depDisplay = `${f.departure_airport} ${f.departure_date} ${f.departure_time} (${f.departure_timezone})`;
-        const arrDisplay = `${f.arrival_airport} ${f.arrival_date} ${f.arrival_time} (${f.arrival_timezone})`;
-        meta.innerHTML = `<strong>${escapeHtml(f.flight_number)}</strong> — ${escapeHtml(f.passenger_name)}<br>
-                          🛫 ${escapeHtml(depDisplay)}<br>
-                          🛬 ${escapeHtml(arrDisplay)}<br>
-                          <small>Seat: ${escapeHtml(f.seat || 'Not assigned')} • Class: ${escapeHtml(f.class || 'Not specified')} • Baggage: ${escapeHtml(f.baggage || 'Not specified')}</small[...]
-      }
+      const depDisplay = `${f.departure_airport} ${f.departure_date} ${f.departure_time} (${f.departure_timezone})`;
+      const arrDisplay = `${f.arrival_airport} ${f.arrival_date} ${f.arrival_time} (${f.arrival_timezone})`;
+      meta.innerHTML = `<strong>${escapeHtml(f.flight_number)}</strong> — ${escapeHtml(f.passenger_name)}<br>
+                        🛫 ${escapeHtml(depDisplay)}<br>
+                        🛬 ${escapeHtml(arrDisplay)}<br>
+                        <small>Seat: ${escapeHtml(f.seat || 'Not assigned')} • Class: ${escapeHtml(f.class || 'Not specified')} • Baggage: ${escapeHtml(f.baggage || 'Not specified')}</small>`;
 
       const actions = document.createElement('div');
       actions.className = 'actions';
@@ -439,18 +699,16 @@ document.addEventListener('DOMContentLoaded', () => {
       editBtn.addEventListener('click', () => openModalForEdit(i));
       actions.appendChild(editBtn);
 
-      if (!f.placeholder) {
-        const delBtn = document.createElement('button');
-        delBtn.textContent = 'Remove';
-        delBtn.className = 'danger';
-        delBtn.addEventListener('click', () => {
-          if (confirm('Remove this flight?')) {
-            flights.splice(i, 1);
-            renderFlights();
-          }
-        });
-        actions.appendChild(delBtn);
-      }
+      const delBtn = document.createElement('button');
+      delBtn.textContent = 'Remove';
+      delBtn.className = 'danger';
+      delBtn.addEventListener('click', () => {
+        if (confirm('Remove this flight?')) {
+          flights.splice(i, 1);
+          renderFlights();
+        }
+      });
+      actions.appendChild(delBtn);
 
       item.appendChild(meta);
       item.appendChild(actions);
@@ -462,7 +720,7 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       const hasPlaceholder = flights.some(f => f.placeholder === true);
       if (hasPlaceholder) {
-        alert('Please fill in the first flight before exporting. Click Edit on the first flight.');
+        alert('Please fill in the first flight before exporting. Fill the first flight form on the page.');
         return;
       }
 
