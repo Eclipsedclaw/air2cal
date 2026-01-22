@@ -132,16 +132,12 @@ input[type="time"]{
   gap: 12px;
 }
 
-.actions-output {
-  margin-top: 20px; /* pushes Generate well below */
-}
-
 /* Responsive */
 @media (max-width:600px){
   .modal{ padding:12px; }
   .row{ flex-direction:column; }
   .actions-wrapper{ flex-direction:column; gap:12px; }
-  .actions-output{ margin-top:12px; }
+  .actions-output{ margin-top:20px; }
 }
 
 /* Minimal, non-invasive styles for the inline "first flight" form.
