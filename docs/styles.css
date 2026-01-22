@@ -129,7 +129,7 @@ input[type="time"]{
 
 .actions-left {
   display: flex;
-  gap: 12px;
+  gap: 20px;
 }
 
 /* Responsive */
