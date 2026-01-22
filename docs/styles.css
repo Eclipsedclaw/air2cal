@@ -127,11 +127,43 @@ input[type="time"]{
   gap: 16px; /* space between rows */
 }
 
+/* Keep the generate button aligned under the left controls */
 .actions-output {
   align-self: flex-start; /* align under both buttons */
 }
 
-/* Responsive */
+/* Emphasize the Generate .ics button so it stands out slightly from the other action buttons.
+   - Add a subtle outline / edge and lift on hover/focus
+   - Keep colors consistent with the --accent value */
+.actions-output #generate {
+  /* spacing to make it feel separate from Save/Add */
+  margin-top: 6px;
+  padding: 10px 16px;
+  border-radius: 10px;
+  border: 2px solid transparent;
+  background: var(--accent);
+  color: #fff;
+  box-shadow: 0 6px 18px rgba(11,105,255,0.12);
+  transition: transform .12s ease, box-shadow .12s ease, border-color .12s ease;
+  position: relative;
+  z-index: 2;
+}
+
+/* subtle hover/focus emphasis and clearer edge */
+.actions-output #generate:hover,
+.actions-output #generate:focus {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 30px rgba(11,105,255,0.18);
+  outline: none;
+  border-color: rgba(11,105,255,0.18);
+}
+
+/* keyboard focus ring for accessibility */
+.actions-output #generate:focus-visible {
+  box-shadow: 0 10px 30px rgba(11,105,255,0.2), 0 0 0 4px rgba(11,105,255,0.06);
+}
+
+/* Responsive adjustments */
 @media (max-width:600px){
   .modal{ padding:12px; }
   .row{ flex-direction:column; }
