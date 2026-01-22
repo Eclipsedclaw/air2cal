@@ -131,7 +131,7 @@ input[type="time"]{
 .actions-left{
   display:flex;
   flex-direction:column;
-  gap:8px;
+  gap:16px;
   align-items:flex-start;
 }
 .actions-output{
@@ -172,7 +172,7 @@ input[type="time"]{
    wrap so fields naturally flow on small screens. */
 .first-flight-form .ff-grid {
   display: flex;
-  gap: 8px;
+  gap: 16px;
   flex-wrap: wrap;
   align-items: flex-start;
 }
