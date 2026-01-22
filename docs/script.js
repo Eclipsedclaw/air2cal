@@ -429,7 +429,7 @@ document.addEventListener('DOMContentLoaded', () => {
         meta.innerHTML = `<strong>${escapeHtml(f.flight_number)}</strong> — ${escapeHtml(f.passenger_name)}<br>
                           🛫 ${escapeHtml(depDisplay)}<br>
                           🛬 ${escapeHtml(arrDisplay)}<br>
-                          <small>Seat: ${escapeHtml(f.seat || 'Not assigned')} • Class: ${escapeHtml(f.class || 'Not specified')} • Baggage: ${escapeHtml(f.baggage || 'Not specified')}</small>`;
+                          <small>Seat: ${escapeHtml(f.seat || 'Not assigned')} • Class: ${escapeHtml(f.class || 'Not specified')} • Baggage: ${escapeHtml(f.baggage || 'Not specified')}</small[...]
       }
 
       const actions = document.createElement('div');
