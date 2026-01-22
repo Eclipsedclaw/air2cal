@@ -293,7 +293,20 @@ document.addEventListener('DOMContentLoaded', () => {
   const saveFirstTopBtn = document.getElementById('saveFirstTop');
 
   // Initial state: Add flight disabled until first flight saved
-  if (addFlightBtn) addFlightBtn.disabled = true;
+  // Replace the single-line wiring for addFlightBtn with this guarded handler:
+  if (addFlightBtn) {
+    addFlightBtn.addEventListener('click', (e) => {
+      // If the first flight is still a placeholder, block and remind the user
+      if (!flights || !flights[0] || flights[0].placeholder) {
+        alert('Please add first flight information!');
+        const saveBtn = document.getElementById('saveFirstTop');
+        if (saveBtn) saveBtn.focus();
+        return;
+      }
+      // First flight exists — open the modal as before
+      openModalForNew();
+    });
+  }
 
   // Wire UI buttons
   if (addFlightBtn) addFlightBtn.addEventListener('click', openModalForNew);
@@ -769,7 +782,7 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       const hasPlaceholder = flights.some(f => f.placeholder === true);
       if (hasPlaceholder) {
-        alert('Please fill in the first flight before exporting. Fill the first flight form on the page and click "Save first flight".');
+        alert('Please fill in the first flight before exporting. Fill the first flight form on the page and click "Save flight".');
         return;
       }
 
