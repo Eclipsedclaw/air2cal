@@ -1,17 +1,23 @@
 // script.js
-// Uses Luxon (loaded in index.html via CDN)
-// Loads docs/airports.json at runtime and provides autocomplete + timezone autofill.
-
+// Uses Luxon (loaded in index.html via CDN) and Fuse.js for fuzzy search
 const DateTime = luxon.DateTime;
 
-// small fallback subset while full airports.json loads
+/*
+  This script loads docs/airports.json (if available), builds a Fuse index
+  and provides suggestion dropdowns for airport inputs (code, city, name).
+*/
+
+// Small fallback if airports.json cannot be loaded
 let AIRPORTS = {
   "JFK": {"tz":"America/New_York","name":"John F. Kennedy International Airport","city":"New York","country":"US"},
   "LAX": {"tz":"America/Los_Angeles","name":"Los Angeles International Airport","city":"Los Angeles","country":"US"},
   "HND": {"tz":"Asia/Tokyo","name":"Haneda Airport","city":"Tokyo","country":"JP"}
 };
 
-// Load airports.json (non-blocking). Caches in localStorage if available.
+let FUSE = null;
+let FUSE_LIST = []; // array of {code,name,city,tz}
+
+// Load airports.json into AIRPORTS and init fuse
 async function loadAirportsJson(options = {useLocalStorage: true}) {
   if (options.useLocalStorage) {
     try {
@@ -30,90 +36,218 @@ async function loadAirportsJson(options = {useLocalStorage: true}) {
   }
 
   try {
-    // airports.json should be placed next to index.html in the published site
     const url = new URL('airports.json', location.href).toString();
     const resp = await fetch(url, {cache: 'no-cache'});
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
     const data = await resp.json();
-
     const normalized = {};
-    for (const [code, info] of Object.entries(data)) {
-      normalized[code.toUpperCase()] = info;
-    }
+    for (const [code, info] of Object.entries(data)) normalized[code.toUpperCase()] = info;
     AIRPORTS = normalized;
     console.log(`Loaded ${Object.keys(AIRPORTS).length} airports from airports.json`);
-
-    // populate datalist for autocomplete
-    fillAirportDatalist();
-
-    if (options.useLocalStorage) {
-      try {
-        localStorage.setItem('airports_json_v1', JSON.stringify(normalized));
-      } catch (e) {
-        console.warn('Could not cache airports.json to localStorage:', e);
-      }
-    }
-    return true;
+    try { localStorage.setItem('airports_json_v1', JSON.stringify(normalized)); } catch(e){}
   } catch (err) {
     console.warn('Could not load airports.json; using fallback AIRPORTS:', err);
-    // still populate datalist from fallback
-    fillAirportDatalist();
-    return false;
+  }
+
+  initFuse();
+}
+
+// Prepare Fuse.js index
+function initFuse() {
+  FUSE_LIST = Object.entries(AIRPORTS).map(([code, info]) => ({
+    code,
+    name: info.name || '',
+    city: info.city || '',
+    tz: info.tz || ''
+  }));
+
+  // Configure Fuse: search code (exact/startsWith) and fuzzy on name/city
+  const options = {
+    includeScore: true,
+    shouldSort: true,
+    threshold: 0.35, // smaller threshold = stricter match (tweakable)
+    keys: [
+      { name: 'code', weight: 0.6 },
+      { name: 'name', weight: 0.3 },
+      { name: 'city', weight: 0.3 }
+    ],
+    useExtendedSearch: true
+  };
+
+  try {
+    FUSE = new Fuse(FUSE_LIST, options);
+  } catch (e) {
+    console.warn('Fuse initialization failed; suggestions disabled', e);
+    FUSE = null;
   }
 }
 
-// fill datalist with entries like "JFK — New York (John F. Kennedy...)"
-function fillAirportDatalist() {
-  const datalist = document.getElementById('airportList');
-  if (!datalist) return;
-  datalist.innerHTML = '';
-  const entries = Object.entries(AIRPORTS);
-  // limit to first ~100 for datalist size (or leave more)
-  const limit = Math.min(entries.length, 120);
-  for (let i = 0; i < limit; i++) {
-    const [code, info] = entries[i];
-    const opt = document.createElement('option');
-    const city = info.city || '';
-    const name = info.name || '';
-    opt.value = `${code} — ${city}${name ? ` (${name})` : ''}`;
-    datalist.appendChild(opt);
-  }
-}
-
-// Utilities to extract IATA code from user input (accepts "JFK" or "JFK — New York")
+// Utility: extract code if user typed "JFK — New York" or just "JFK"
 function extractCode(input) {
   if (!input) return '';
-  const trimmed = input.trim();
-  // If starts with three letters (or 3-4) use them
-  const m = trimmed.match(/^([A-Za-z]{3,4})\b/);
+  const s = input.trim();
+  // pattern: "JFK — ..." or "JFK - ..." or starts with code
+  const m = s.match(/^([A-Za-z]{3,4})\b/);
   if (m) return m[1].toUpperCase();
-  // If contains ' — ' pattern, split
-  if (trimmed.includes('—')) {
-    return trimmed.split('—')[0].trim().toUpperCase();
+  if (s.includes('—')) return s.split('—')[0].trim().toUpperCase();
+  if (s.includes('-')) return s.split('-')[0].trim().toUpperCase();
+  return s.toUpperCase();
+}
+
+// Suggestion UI: create and attach handlers for a given input and suggestion container
+function attachSuggestions(inputEl, suggContainer) {
+  let activeIndex = -1;
+  let currentItems = [];
+  const debounce = (fn, wait) => {
+    let t = null;
+    return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), wait); };
+  };
+
+  function showSuggestions(items) {
+    currentItems = items;
+    activeIndex = -1;
+    suggContainer.innerHTML = '';
+    if (!items || items.length === 0) {
+      suggContainer.setAttribute('aria-hidden', 'true');
+      return;
+    }
+    items.forEach((it, idx) => {
+      const el = document.createElement('div');
+      el.className = 'suggestion';
+      el.setAttribute('role', 'option');
+      el.dataset.index = idx;
+      el.innerHTML = `<span class="code">${escapeHtml(it.code)}</span>
+                      <span class="meta">${escapeHtml(it.city || '')}${it.city ? ' — ' : ''}${escapeHtml(it.name || '')}</span>`;
+      el.addEventListener('mousedown', (e) => {
+        // use mousedown so input doesn't lose focus before click
+        e.preventDefault();
+        selectSuggestion(idx);
+      });
+      suggContainer.appendChild(el);
+    });
+    suggContainer.setAttribute('aria-hidden', 'false');
   }
-  // fallback: last token if it is code-like
-  const tokens = trimmed.split(/\s+/);
-  const last = tokens[0] || '';
-  if (/^[A-Za-z]{3,4}$/.test(last)) return last.toUpperCase();
-  return trimmed.toUpperCase();
+
+  function hideSuggestions() {
+    suggContainer.setAttribute('aria-hidden', 'true');
+    currentItems = [];
+    activeIndex = -1;
+  }
+
+  function selectSuggestion(idx) {
+    const it = currentItems[idx];
+    if (!it) return;
+    inputEl.value = `${it.code} — ${it.city}${it.name ? ` (${it.name})` : ''}`;
+    // trigger timezone autofill
+    const tzField = inputEl.id.includes('departure') ? document.getElementById('departure_timezone') : document.getElementById('arrival_timezone');
+    if (tzField && it.tz) tzField.value = it.tz;
+    hideSuggestions();
+    inputEl.focus();
+  }
+
+  function onInput() {
+    const q = inputEl.value.trim();
+    if (!q) { hideSuggestions(); return; }
+    // First, if q looks like an exact code, show that as top result
+    const codeCandidate = extractCode(q);
+    const exact = AIRPORTS[codeCandidate];
+    let results = [];
+    if (exact) {
+      results.push({ code: codeCandidate, name: exact.name, city: exact.city, tz: exact.tz });
+    }
+    // Fuse search for other matches
+    if (FUSE && q.length >= 1) {
+      const fuseResults = FUSE.search(q, {limit: 10});
+      for (const r of fuseResults) {
+        const item = r.item;
+        if (item.code === codeCandidate) continue;
+        results.push(item);
+        if (results.length >= 8) break;
+      }
+    } else {
+      const lowered = q.toLowerCase();
+      for (const item of FUSE_LIST) {
+        if (item.code.toLowerCase().includes(lowered) || item.name.toLowerCase().includes(lowered) || item.city.toLowerCase().includes(lowered)) {
+          if (!results.find(r => r.code === item.code)) results.push(item);
+          if (results.length >= 8) break;
+        }
+      }
+    }
+    showSuggestions(results);
+  }
+
+  const debounced = debounce(onInput, 150);
+  inputEl.addEventListener('input', debounced);
+
+  inputEl.addEventListener('keydown', (e) => {
+    const items = suggContainer.querySelectorAll('.suggestion');
+    if (suggContainer.getAttribute('aria-hidden') === 'true') return;
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      activeIndex = Math.min(activeIndex + 1, items.length - 1);
+      updateActive(items);
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      activeIndex = Math.max(activeIndex - 1, 0);
+      updateActive(items);
+    } else if (e.key === 'Enter') {
+      if (activeIndex >= 0 && activeIndex < currentItems.length) {
+        e.preventDefault();
+        selectSuggestion(activeIndex);
+      }
+    } else if (e.key === 'Escape') {
+      hideSuggestions();
+    }
+  });
+
+  function updateActive(items) {
+    items.forEach((el, idx) => {
+      el.classList.toggle('active', idx === activeIndex);
+    });
+    if (activeIndex >= 0 && items[activeIndex]) {
+      const el = items[activeIndex];
+      el.scrollIntoView({block: 'nearest'});
+    }
+  }
+
+  // close suggestions when clicking outside
+  document.addEventListener('click', (ev) => {
+    if (!suggContainer.contains(ev.target) && ev.target !== inputEl) hideSuggestions();
+  });
 }
 
-// Round DateTime to nearest step (15 min)
-function roundToStep(dateTime, stepMinutes = 15) {
-  const totalMinutes = dateTime.hour * 60 + dateTime.minute;
-  const rounded = Math.round(totalMinutes / stepMinutes) * stepMinutes;
-  const hh = String(Math.floor((rounded / 60) % 24)).padStart(2, '0');
-  const mm = String(rounded % 60).padStart(2, '0');
-  return `${hh}:${mm}`;
-}
+// small escape for innerHTML usage
+function escapeHtml(s){ return (s||'').toString().replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
+// rest of the UI logic (modal, saving, ICS building) follows previous structure
 document.addEventListener('DOMContentLoaded', () => {
-  // initialize loading airports.json in background
-  loadAirportsJson().catch(() => {});
+  // load airports and build fuse index
+  loadAirportsJson().catch(() => { initFuse(); });
 
   // State
   let flights = [];
   let editingIndex = null;
+
+  // Create one default placeholder flight so the UI always shows a first flight input.
+  // This placeholder forces the user to edit the first flight before exporting.
+  const today = DateTime.now().toISODate();
+  const roundedNow = roundToStep(DateTime.now(), 15);
+  flights.push({
+    placeholder: true,
+    flight_number: '(new flight)',
+    passenger_name: '(click Edit)',
+    departure_airport: '',
+    departure_timezone: '',
+    departure_date: today,
+    departure_time: roundedNow,
+    arrival_airport: '',
+    arrival_timezone: '',
+    arrival_date: today,
+    arrival_time: roundedNow,
+    seat: '',
+    class: '',
+    baggage: ''
+  });
 
   // Elements
   const modalOverlay = document.getElementById('modalOverlay');
@@ -136,34 +270,31 @@ document.addEventListener('DOMContentLoaded', () => {
     baggage: document.getElementById('baggage'),
   };
 
-  // Wire UI buttons
+  // Attach suggestion handlers for both airport inputs
+  attachSuggestions(fld.departure_airport, document.getElementById('departure_suggestions'));
+  attachSuggestions(fld.arrival_airport, document.getElementById('arrival_suggestions'));
+
+  // Wire UI buttons (same as before)
   document.getElementById('addFlight').addEventListener('click', openModalForNew);
   document.getElementById('cancelFlight').addEventListener('click', closeModal);
   document.getElementById('saveFlight').addEventListener('click', () => saveFlight(false));
   document.getElementById('saveAndAddAnother').addEventListener('click', () => saveFlight(true));
   document.getElementById('generate').addEventListener('click', generateIcs);
 
-  // Autofill tz when airport input changes/loses focus
+  // Also autofill tz on blur if user typed only a code
   [fld.departure_airport, fld.arrival_airport].forEach(input => {
-    input.addEventListener('blur', (e) => tryAutoFillTz(e.target));
-    input.addEventListener('input', (e) => {
-      const v = e.target.value.trim();
-      // try autofill when user types code at start or picks from datalist
-      const code = extractCode(v);
-      if (code && AIRPORTS[code]) tryAutoFillTz(e.target);
+    input.addEventListener('blur', (e) => {
+      const code = extractCode(e.target.value);
+      if (code && AIRPORTS[code]) {
+        const tzField = e.target.id.includes('departure') ? fld.departure_timezone : fld.arrival_timezone;
+        tzField.value = AIRPORTS[code].tz || '';
+      }
     });
   });
 
-  function tryAutoFillTz(inputEl) {
-    const raw = inputEl.value || '';
-    const code = extractCode(raw);
-    if (!code) return;
-    const tzField = inputEl === fld.departure_airport ? fld.departure_timezone : fld.arrival_timezone;
-    if (AIRPORTS[code]) tzField.value = AIRPORTS[code].tz || '';
-  }
-
-  // Modal functions
+  // Modal functions & rest of logic (saveFlight, renderFlights, buildICS, etc.)
   function openModalForNew() {
+    // Add new flight entries only start from the second one (first is placeholder)
     editingIndex = null;
     modalTitle.textContent = 'Add Flight';
     flightForm.reset();
@@ -181,7 +312,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function openModalForEdit(idx) {
     editingIndex = idx;
     const f = flights[idx];
-    modalTitle.textContent = 'Edit Flight';
+    modalTitle.textContent = f.placeholder ? 'Fill First Flight' : 'Edit Flight';
     fld.flight_number.value = f.flight_number || '';
     fld.passenger_name.value = f.passenger_name || '';
     fld.departure_airport.value = f.departure_airport || '';
@@ -209,7 +340,6 @@ document.addEventListener('DOMContentLoaded', () => {
     editingIndex = null;
   }
 
-  // Save/validate flight
   function saveFlight(keepOpen) {
     const flight_number = fld.flight_number.value.trim() || '(unknown)';
     const passenger_name = fld.passenger_name.value.trim() || '(unknown)';
@@ -229,7 +359,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const flight_class = fld.class.value.trim();
     const baggage = fld.baggage.value.trim();
 
-    // autofill tz if missing
     if (!departure_timezone && AIRPORTS[departure_airport]) departure_timezone = AIRPORTS[departure_airport].tz || '';
     if (!arrival_timezone && AIRPORTS[arrival_airport]) arrival_timezone = AIRPORTS[arrival_airport].tz || '';
 
@@ -255,8 +384,13 @@ document.addEventListener('DOMContentLoaded', () => {
       arrival_time_combined: arrCombined
     };
 
-    if (editingIndex === null) flights.push(flight);
-    else flights[editingIndex] = flight;
+    if (editingIndex === null) {
+      // adding new (second+ flights)
+      flights.push(flight);
+    } else {
+      // replacing existing (including the initial placeholder)
+      flights[editingIndex] = flight;
+    }
 
     renderFlights();
     if (!keepOpen) closeModal();
@@ -273,7 +407,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // render flight list
   function renderFlights() {
     const container = document.getElementById('flights');
     container.innerHTML = '';
@@ -283,29 +416,40 @@ document.addEventListener('DOMContentLoaded', () => {
 
       const meta = document.createElement('div');
       meta.className = 'meta';
-      const depDisplay = `${f.departure_airport} ${f.departure_date} ${f.departure_time} (${f.departure_timezone})`;
-      const arrDisplay = `${f.arrival_airport} ${f.arrival_date} ${f.arrival_time} (${f.arrival_timezone})`;
-      meta.innerHTML = `<strong>${escapeHtml(f.flight_number)}</strong> — ${escapeHtml(f.passenger_name)}<br>
-                        🛫 ${escapeHtml(depDisplay)}<br>
-                        🛬 ${escapeHtml(arrDisplay)}<br>
-                        <small>Seat: ${escapeHtml(f.seat || 'Not assigned')} • Class: ${escapeHtml(f.class || 'Not specified')} • Baggage: ${escapeHtml(f.baggage || 'Not specified')}</small>`;
+
+      if (f.placeholder) {
+        // show instructive placeholder
+        meta.innerHTML = `<strong style="opacity:.9">First flight (required)</strong><br>
+                          <small style="color:var(--muted)">Click <em>Edit</em> to enter the first flight's details.</small>`;
+      } else {
+        const depDisplay = `${f.departure_airport} ${f.departure_date} ${f.departure_time} (${f.departure_timezone})`;
+        const arrDisplay = `${f.arrival_airport} ${f.arrival_date} ${f.arrival_time} (${f.arrival_timezone})`;
+        meta.innerHTML = `<strong>${escapeHtml(f.flight_number)}</strong> — ${escapeHtml(f.passenger_name)}<br>
+                          🛫 ${escapeHtml(depDisplay)}<br>
+                          🛬 ${escapeHtml(arrDisplay)}<br>
+                          <small>Seat: ${escapeHtml(f.seat || 'Not assigned')} • Class: ${escapeHtml(f.class || 'Not specified')} • Baggage: ${escapeHtml(f.baggage || 'Not specified')}</small>`;
+      }
 
       const actions = document.createElement('div');
       actions.className = 'actions';
       const editBtn = document.createElement('button');
       editBtn.textContent = 'Edit';
       editBtn.addEventListener('click', () => openModalForEdit(i));
-      const delBtn = document.createElement('button');
-      delBtn.textContent = 'Remove';
-      delBtn.className = 'danger';
-      delBtn.addEventListener('click', () => {
-        if (confirm('Remove this flight?')) {
-          flights.splice(i, 1);
-          renderFlights();
-        }
-      });
       actions.appendChild(editBtn);
-      actions.appendChild(delBtn);
+
+      // allow removing only non-placeholder flights
+      if (!f.placeholder) {
+        const delBtn = document.createElement('button');
+        delBtn.textContent = 'Remove';
+        delBtn.className = 'danger';
+        delBtn.addEventListener('click', () => {
+          if (confirm('Remove this flight?')) {
+            flights.splice(i, 1);
+            renderFlights();
+          }
+        });
+        actions.appendChild(delBtn);
+      }
 
       item.appendChild(meta);
       item.appendChild(actions);
@@ -313,9 +457,15 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // build ICS and trigger download
   function generateIcs() {
     try {
+      // ensure first placeholder has been filled
+      const hasPlaceholder = flights.some(f => f.placeholder === true);
+      if (hasPlaceholder) {
+        alert('Please fill in the first flight before exporting. Click Edit on the first flight.');
+        return;
+      }
+
       if (flights.length === 0) throw new Error('No flights to export. Add at least one flight.');
       const ics = buildICS(flights);
       const blob = new Blob([ics], {type: 'text/calendar;charset=utf-8'});
@@ -333,7 +483,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // Build ICS (UTC times)
   function buildICS(flightsArr) {
     const nowUTC = DateTime.utc().toFormat("yyyyLLdd'T'HHmmss'Z'");
     let ics = [
@@ -386,13 +535,11 @@ document.addEventListener('DOMContentLoaded', () => {
     return ics;
   }
 
-  /* Helpers */
-
+  // Helpers (escape, rounding, etc.)
   function icsEscape(text) {
     return (text||'').toString().replace(/\\/g,'\\\\').replace(/\n/g,'\\n').replace(/,/g,'\\,').replace(/;/g,'\\;');
   }
   function escapeHtml(s){ return (s||'').toString().replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
-
   function formatDuration(startDt, endDt){
     const diff = endDt.diff(startDt, ['hours','minutes']).toObject();
     const hours = Math.floor(diff.hours || 0);
@@ -401,12 +548,19 @@ document.addEventListener('DOMContentLoaded', () => {
     if (hours>0) return `${hours}h`;
     return `${minutes}m`;
   }
+  function roundToStep(dateTime, stepMinutes = 15) {
+    const totalMinutes = dateTime.hour * 60 + dateTime.minute;
+    const rounded = Math.round(totalMinutes / stepMinutes) * stepMinutes;
+    const hh = String(Math.floor((rounded / 60) % 24)).padStart(2, '0');
+    const mm = String(rounded % 60).padStart(2, '0');
+    return `${hh}:${mm}`;
+  }
 
-  // close modal when clicking outside modal content
+  // Close modal clicking outside
   modalOverlay.addEventListener('click', (e) => {
     if (e.target === modalOverlay) closeModal();
   });
 
-  // init UI render
+  // Initialize UI
   renderFlights();
 });

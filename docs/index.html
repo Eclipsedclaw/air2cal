@@ -3,16 +3,18 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Air2Cal — Flight → .ics</title>
+  <title>Air2Cal Flight Calendar Generator</title>
   <link rel="stylesheet" href="styles.css">
   <!-- Luxon for timezone handling -->
   <script src="https://cdn.jsdelivr.net/npm/luxon@3/build/global/luxon.min.js" defer></script>
+  <!-- Fuse.js for client-side fuzzy searching -->
+  <script src="https://cdn.jsdelivr.net/npm/fuse.js@6.6.2/dist/fuse.min.js" defer></script>
   <script src="script.js" defer></script>
 </head>
 <body>
   <main class="container">
     <h1>Air2Cal Flight Calendar Generator</h1>
-    <p>Click "Add flight" to enter flight details. Airport suggestions (top airports) are loaded from airports.json.</p>
+    <p>Click "Add flight" to enter flight details. Start typing an airport code, city or airport name and pick from suggestions.</p>
 
     <div id="flights" aria-live="polite"></div>
 
@@ -26,15 +28,12 @@
       <summary>Notes</summary>
       <ul>
         <li>Everything runs in your browser — no server required.</li>
-        <li>Date picker and native time input are used; time input is limited to 15-minute steps.</li>
+        <li>Input uses a calendar for dates and a native time picker with 15-minute steps.</li>
       </ul>
     </details>
   </main>
 
-  <!-- datalist for airport autocomplete (populated at runtime) -->
-  <datalist id="airportList"></datalist>
-
-  <!-- Modal -->
+  <!-- Modal container (pop-out form) -->
   <div id="modalOverlay" class="modal-overlay" aria-hidden="true" style="display:none">
     <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
       <h2 id="modalTitle">Add Flight</h2>
@@ -51,8 +50,9 @@
         <fieldset class="section">
           <legend>🛫 DEPARTURE</legend>
 
-          <label>Departure airport code or search
-            <input type="text" id="departure_airport" list="airportList" maxlength="32" placeholder="e.g., JFK or 'JFK — New York'"/>
+          <label>Departure airport (code, city or name)
+            <input type="text" id="departure_airport" class="airport-input" maxlength="64" placeholder="e.g., JFK, New York, John F. Kennedy" />
+            <div class="suggestions" id="departure_suggestions" role="listbox" aria-hidden="true"></div>
           </label>
 
           <label>Departure timezone (auto-filled if known)
@@ -73,8 +73,9 @@
         <fieldset class="section">
           <legend>🛬 ARRIVAL</legend>
 
-          <label>Arrival airport code or search
-            <input type="text" id="arrival_airport" list="airportList" maxlength="32" placeholder="e.g., HNL or 'HNL — Honolulu'"/>
+          <label>Arrival airport (code, city or name)
+            <input type="text" id="arrival_airport" class="airport-input" maxlength="64" placeholder="e.g., HNL, Honolulu, Daniel K. Inouye" />
+            <div class="suggestions" id="arrival_suggestions" role="listbox" aria-hidden="true"></div>
           </label>
 
           <label>Arrival timezone (auto-filled if known)
