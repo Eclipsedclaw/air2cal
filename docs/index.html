@@ -25,7 +25,6 @@
       <summary>Notes</summary>
       <ul>
         <li>Everything runs in your browser — no server required.</li>
-        <li>Date uses a native date picker. Time uses a rolling dropdown from 00:00 → 23:59 (minute resolution).</li>
         <li>Timezones are IANA values (e.g., America/New_York). If an airport isn't in the built-in list you'll be able to type the timezone manually.</li>
       </ul>
     </details>
@@ -56,13 +55,13 @@
             <input type="text" id="departure_timezone" placeholder="e.g., America/New_York" />
           </label>
 
-          <div class="row small-gaps">
-            <label>Departure date
+          <div class="row">
+            <label style="flex:1">Departure date
               <input type="date" id="departure_date" />
             </label>
 
-            <label>Departure time
-              <select id="departure_time_select" aria-label="Departure time"></select>
+            <label style="flex:1">Departure time
+              <select id="departure_time" aria-label="Departure time"></select>
             </label>
           </div>
         </fieldset>
@@ -78,13 +77,13 @@
             <input type="text" id="arrival_timezone" placeholder="e.g., Pacific/Honolulu" />
           </label>
 
-          <div class="row small-gaps">
-            <label>Arrival date
+          <div class="row">
+            <label style="flex:1">Arrival date
               <input type="date" id="arrival_date" />
             </label>
 
-            <label>Arrival time
-              <select id="arrival_time_select" aria-label="Arrival time"></select>
+            <label style="flex:1">Arrival time
+              <select id="arrival_time" aria-label="Arrival time"></select>
             </label>
           </div>
         </fieldset>
