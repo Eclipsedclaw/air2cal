@@ -25,7 +25,7 @@
       <summary>Notes</summary>
       <ul>
         <li>Everything runs in your browser — no server required.</li>
-        <li>Timezones are IANA values (e.g., America/New_York). If an airport isn't in the built-in list you'll be able to type the timezone manually.</li>
+        <li>Use the calendar to pick a date and the time control to pick a time in HH:MM format (15‑minute steps).</li>
       </ul>
     </details>
   </main>
@@ -61,7 +61,8 @@
             </label>
 
             <label style="flex:1">Departure time
-              <select id="departure_time" aria-label="Departure time"></select>
+              <!-- native time input with 15-minute steps; forces HH:MM format -->
+              <input type="time" id="departure_time" step="900" aria-label="Departure time" />
             </label>
           </div>
         </fieldset>
@@ -83,7 +84,8 @@
             </label>
 
             <label style="flex:1">Arrival time
-              <select id="arrival_time" aria-label="Arrival time"></select>
+              <!-- native time input with 15-minute steps -->
+              <input type="time" id="arrival_time" step="900" aria-label="Arrival time" />
             </label>
           </div>
         </fieldset>

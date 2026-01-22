@@ -61,7 +61,7 @@ small{color:var(--muted)}
 .modal h2{margin-top:0}
 
 form label{display:block;margin-bottom:8px}
-form input[type="text"], form input[type="date"], form select{
+form input[type="text"], form input[type="date"], form input[type="time"], form select{
   width:100%;
   padding:8px;
   border:1px solid #ddd;
@@ -69,6 +69,15 @@ form input[type="text"], form input[type="date"], form select{
   margin-top:6px;
 }
 
+/* make native time input visually consistent */
+input[type="time"]{
+  -webkit-appearance: none;
+  appearance: none;
+  padding-right: 8px;
+}
+
+/* small-layout helpers */
+.row{display:flex;gap:8px;flex-wrap:wrap}
 .section{
   border:1px solid #f0f0f0;
   padding:10px;
@@ -81,4 +90,10 @@ form input[type="text"], form input[type="date"], form select{
   gap:8px;
   margin-top:12px;
   justify-content:flex-end;
+}
+
+/* Responsive */
+@media (max-width:600px){
+  .modal{ padding:12px; }
+  .row{ flex-direction:column; }
 }

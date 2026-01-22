@@ -2,20 +2,104 @@
 // Uses Luxon (loaded in index.html via CDN)
 const DateTime = luxon.DateTime;
 
-/* Airport map (same data as your main.py). Extend as desired. */
+/*
+  TODO: add more well defined airports as needed.
+*/
 const AIRPORTS = {
-  "JFK": {"tz":"America/New_York","name":"John F Kennedy International Airport","city":"New York","country":"US"},
-  "KIX": {"tz":"Asia/Tokyo","name":"Kansai International Airport","city":"Osaka","country":"JP"},
-  "HNL": {"tz":"Pacific/Honolulu","name":"Daniel K Inouye International Airport","city":"Honolulu","country":"US"},
+  "ATL": {"tz":"America/New_York","name":"Hartsfield-Jackson Atlanta International Airport","city":"Atlanta","country":"US"},
+  "PEK": {"tz":"Asia/Shanghai","name":"Beijing Capital International Airport","city":"Beijing","country":"CN"},
   "LAX": {"tz":"America/Los_Angeles","name":"Los Angeles International Airport","city":"Los Angeles","country":"US"},
-  "SFO": {"tz":"America/Los_Angeles","name":"San Francisco International Airport","city":"San Francisco","country":"US"},
-  "NRT": {"tz":"Asia/Tokyo","name":"Narita International Airport","city":"Tokyo","country":"JP"},
-  "HND": {"tz":"Asia/Tokyo","name":"Haneda Airport","city":"Tokyo","country":"JP"},
+  "DXB": {"tz":"Asia/Dubai","name":"Dubai International Airport","city":"Dubai","country":"AE"},
+  "HND": {"tz":"Asia/Tokyo","name":"Tokyo Haneda Airport","city":"Tokyo","country":"JP"},
   "ORD": {"tz":"America/Chicago","name":"O'Hare International Airport","city":"Chicago","country":"US"},
-  "SEA": {"tz":"America/Los_Angeles","name":"Seattle-Tacoma International Airport","city":"Seattle","country":"US"},
+  "LHR": {"tz":"Europe/London","name":"Heathrow Airport","city":"London","country":"GB"},
+  "HKG": {"tz":"Asia/Hong_Kong","name":"Hong Kong International Airport","city":"Hong Kong","country":"HK"},
+  "PVG": {"tz":"Asia/Shanghai","name":"Shanghai Pudong International Airport","city":"Shanghai","country":"CN"},
+  "CDG": {"tz":"Europe/Paris","name":"Charles de Gaulle Airport","city":"Paris","country":"FR"},
+  "AMS": {"tz":"Europe/Amsterdam","name":"Amsterdam Airport Schiphol","city":"Amsterdam","country":"NL"},
+  "FRA": {"tz":"Europe/Berlin","name":"Frankfurt Airport","city":"Frankfurt","country":"DE"},
+  "IST": {"tz":"Europe/Istanbul","name":"Istanbul Airport","city":"Istanbul","country":"TR"},
+  "CAN": {"tz":"Asia/Shanghai","name":"Guangzhou Baiyun International Airport","city":"Guangzhou","country":"CN"},
+  "SFO": {"tz":"America/Los_Angeles","name":"San Francisco International Airport","city":"San Francisco","country":"US"},
+  "DEL": {"tz":"Asia/Kolkata","name":"Indira Gandhi International Airport","city":"New Delhi","country":"IN"},
+  "CGK": {"tz":"Asia/Jakarta","name":"Soekarno–Hatta International Airport","city":"Jakarta","country":"ID"},
+  "SIN": {"tz":"Asia/Singapore","name":"Singapore Changi Airport","city":"Singapore","country":"SG"},
+  "ICN": {"tz":"Asia/Seoul","name":"Incheon International Airport","city":"Seoul","country":"KR"},
+  "KUL": {"tz":"Asia/Kuala_Lumpur","name":"Kuala Lumpur International Airport","city":"Kuala Lumpur","country":"MY"},
+  "DEN": {"tz":"America/Denver","name":"Denver International Airport","city":"Denver","country":"US"},
+  "BKK": {"tz":"Asia/Bangkok","name":"Suvarnabhumi Airport","city":"Bangkok","country":"TH"},
+  "JFK": {"tz":"America/New_York","name":"John F. Kennedy International Airport","city":"New York","country":"US"},
+  "LAS": {"tz":"America/Los_Angeles","name":"Harry Reid International Airport","city":"Las Vegas","country":"US"},
+  "CLT": {"tz":"America/New_York","name":"Charlotte Douglas International Airport","city":"Charlotte","country":"US"},
+  "MCO": {"tz":"America/New_York","name":"Orlando International Airport","city":"Orlando","country":"US"},
+  "SZX": {"tz":"Asia/Shanghai","name":"Shenzhen Bao'an International Airport","city":"Shenzhen","country":"CN"},
   "MIA": {"tz":"America/New_York","name":"Miami International Airport","city":"Miami","country":"US"},
-  "BOS": {"tz":"America/New_York","name":"Logan International Airport","city":"Boston","country":"US"},
-  // Add more entries from your Python list as needed...
+  "SEA": {"tz":"America/Los_Angeles","name":"Seattle-Tacoma International Airport","city":"Seattle","country":"US"},
+  "MEX": {"tz":"America/Mexico_City","name":"Mexico City International Airport","city":"Mexico City","country":"MX"},
+  "YVR": {"tz":"America/Vancouver","name":"Vancouver International Airport","city":"Vancouver","country":"CA"},
+  "YYZ": {"tz":"America/Toronto","name":"Toronto Pearson International Airport","city":"Toronto","country":"CA"},
+  "NRT": {"tz":"Asia/Tokyo","name":"Narita International Airport","city":"Tokyo","country":"JP"},
+  "MSP": {"tz":"America/Chicago","name":"Minneapolis−Saint Paul International Airport","city":"Minneapolis","country":"US"},
+  "DTW": {"tz":"America/Detroit","name":"Detroit Metropolitan Airport","city":"Detroit","country":"US"},
+  "PHX": {"tz":"America/Phoenix","name":"Phoenix Sky Harbor International Airport","city":"Phoenix","country":"US"},
+  "IAH": {"tz":"America/Chicago","name":"George Bush Intercontinental Airport","city":"Houston","country":"US"},
+  "SYD": {"tz":"Australia/Sydney","name":"Sydney Kingsford Smith Airport","city":"Sydney","country":"AU"},
+  "MUC": {"tz":"Europe/Berlin","name":"Munich Airport","city":"Munich","country":"DE"},
+  "BCN": {"tz":"Europe/Madrid","name":"Barcelona–El Prat Airport","city":"Barcelona","country":"ES"},
+  "MAD": {"tz":"Europe/Madrid","name":"Adolfo Suárez Madrid–Barajas Airport","city":"Madrid","country":"ES"},
+  "SVO": {"tz":"Europe/Moscow","name":"Sheremetyevo International Airport","city":"Moscow","country":"RU"},
+  "FCO": {"tz":"Europe/Rome","name":"Leonardo da Vinci–Fiumicino Airport","city":"Rome","country":"IT"},
+  "EWR": {"tz":"America/New_York","name":"Newark Liberty International Airport","city":"Newark","country":"US"},
+  "DFW": {"tz":"America/Chicago","name":"Dallas/Fort Worth International Airport","city":"Dallas/Fort Worth","country":"US"},
+  "KIX": {"tz":"Asia/Tokyo","name":"Kansai International Airport","city":"Osaka","country":"JP"},
+  "BNE": {"tz":"Australia/Brisbane","name":"Brisbane Airport","city":"Brisbane","country":"AU"},
+  "GIG": {"tz":"America/Sao_Paulo","name":"Rio de Janeiro–Galeão International Airport","city":"Rio de Janeiro","country":"BR"},
+  "GRU": {"tz":"America/Sao_Paulo","name":"São Paulo–Guarulhos International Airport","city":"São Paulo","country":"BR"},
+  "DOH": {"tz":"Asia/Qatar","name":"Hamad International Airport","city":"Doha","country":"QA"},
+  "LGA": {"tz":"America/New_York","name":"LaGuardia Airport","city":"New York","country":"US"},
+  "SCL": {"tz":"America/Santiago","name":"Comodoro Arturo Merino Benítez International Airport","city":"Santiago","country":"CL"},
+  "ARN": {"tz":"Europe/Stockholm","name":"Stockholm Arlanda Airport","city":"Stockholm","country":"SE"},
+  "OSL": {"tz":"Europe/Oslo","name":"Oslo Airport, Gardermoen","city":"Oslo","country":"NO"},
+  "ZRH": {"tz":"Europe/Zurich","name":"Zurich Airport","city":"Zurich","country":"CH"},
+  "VIE": {"tz":"Europe/Vienna","name":"Vienna International Airport","city":"Vienna","country":"AT"},
+  "GVA": {"tz":"Europe/Zurich","name":"Geneva Airport","city":"Geneva","country":"CH"},
+  "PRG": {"tz":"Europe/Prague","name":"Václav Havel Airport Prague","city":"Prague","country":"CZ"},
+  "WAW": {"tz":"Europe/Warsaw","name":"Warsaw Chopin Airport","city":"Warsaw","country":"PL"},
+  "LIS": {"tz":"Europe/Lisbon","name":"Humberto Delgado Airport","city":"Lisbon","country":"PT"},
+  "ATH": {"tz":"Europe/Athens","name":"Athens International Airport","city":"Athens","country":"GR"},
+  "CPH": {"tz":"Europe/Copenhagen","name":"Copenhagen Airport","city":"Copenhagen","country":"DK"},
+  "MAN": {"tz":"Europe/London","name":"Manchester Airport","city":"Manchester","country":"GB"},
+  "DUB": {"tz":"Europe/Dublin","name":"Dublin Airport","city":"Dublin","country":"IE"},
+  "IAD": {"tz":"America/New_York","name":"Washington Dulles International Airport","city":"Washington","country":"US"},
+  "SJC": {"tz":"America/Los_Angeles","name":"Norman Y. Mineta San Jose International Airport","city":"San Jose","country":"US"},
+  "YUL": {"tz":"America/Toronto","name":"Montréal–Trudeau International Airport","city":"Montreal","country":"CA"},
+  "YYC": {"tz":"America/Edmonton","name":"Calgary International Airport","city":"Calgary","country":"CA"},
+  "AUS": {"tz":"America/Chicago","name":"Austin–Bergstrom International Airport","city":"Austin","country":"US"},
+  "JNB": {"tz":"Africa/Johannesburg","name":"O. R. Tambo International Airport","city":"Johannesburg","country":"ZA"},
+  "CPT": {"tz":"Africa/Johannesburg","name":"Cape Town International Airport","city":"Cape Town","country":"ZA"},
+  "EZE": {"tz":"America/Argentina/Buenos_Aires","name":"Ministro Pistarini International Airport","city":"Buenos Aires","country":"AR"},
+  "LIM": {"tz":"America/Lima","name":"Jorge Chávez International Airport","city":"Lima","country":"PE"},
+  "BOG": {"tz":"America/Bogota","name":"El Dorado International Airport","city":"Bogotá","country":"CO"},
+  "CUN": {"tz":"America/Cancun","name":"Cancún International Airport","city":"Cancún","country":"MX"},
+  "SJU": {"tz":"America/Puerto_Rico","name":"Luis Muñoz Marín International Airport","city":"San Juan","country":"PR"},
+  "PHL": {"tz":"America/New_York","name":"Philadelphia International Airport","city":"Philadelphia","country":"US"},
+  "PIT": {"tz":"America/New_York","name":"Pittsburgh International Airport","city":"Pittsburgh","country":"US"},
+  "CLE": {"tz":"America/New_York","name":"Cleveland Hopkins International Airport","city":"Cleveland","country":"US"},
+  "RSW": {"tz":"America/New_York","name":"Southwest Florida International Airport","city":"Fort Myers","country":"US"},
+  "TPE": {"tz":"Asia/Taipei","name":"Taiwan Taoyuan International Airport","city":"Taipei","country":"TW"},
+  "MEL": {"tz":"Australia/Melbourne","name":"Melbourne Airport","city":"Melbourne","country":"AU"},
+  "AKL": {"tz":"Pacific/Auckland","name":"Auckland Airport","city":"Auckland","country":"NZ"},
+  "BOM": {"tz":"Asia/Kolkata","name":"Chhatrapati Shivaji Maharaj International Airport","city":"Mumbai","country":"IN"},
+  "BLR": {"tz":"Asia/Kolkata","name":"Kempegowda International Airport","city":"Bengaluru","country":"IN"},
+  "KMG": {"tz":"Asia/Shanghai","name":"Kunming Changshui International Airport","city":"Kunming","country":"CN"},
+  "CGN": {"tz":"Europe/Berlin","name":"Cologne Bonn Airport","city":"Cologne","country":"DE"},
+  "NCE": {"tz":"Europe/Paris","name":"Nice Côte d'Azur Airport","city":"Nice","country":"FR"},
+  "MXP": {"tz":"Europe/Rome","name":"Milan Malpensa Airport","city":"Milan","country":"IT"},
+  "VCE": {"tz":"Europe/Rome","name":"Venice Marco Polo Airport","city":"Venice","country":"IT"},
+  "LGW": {"tz":"Europe/London","name":"Gatwick Airport","city":"London","country":"GB"},
+  "ORL": {"tz":"America/New_York","name":"Orlando Executive Airport","city":"Orlando","country":"US"},
+  "PRN": {"tz":"Europe/Belgrade","name":"Pristina International Airport","city":"Pristina","country":"XK"} // extra small entry (example)
+  // If you'd like more airports, we can expand further or load a full dataset.
 };
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -35,7 +119,7 @@ document.addEventListener('DOMContentLoaded', () => {
     departure_airport: document.getElementById('departure_airport'),
     departure_timezone: document.getElementById('departure_timezone'),
     departure_date: document.getElementById('departure_date'), // type=date
-    departure_time: document.getElementById('departure_time'), // select
+    departure_time: document.getElementById('departure_time'), // type=time (step=900 in HTML)
     arrival_airport: document.getElementById('arrival_airport'),
     arrival_timezone: document.getElementById('arrival_timezone'),
     arrival_date: document.getElementById('arrival_date'),
@@ -45,20 +129,6 @@ document.addEventListener('DOMContentLoaded', () => {
     baggage: document.getElementById('baggage'),
   };
 
-  // Populate time selects with step (minutes). We'll use 15-minute increments.
-  function populateTimeOptions(selectEl, stepMinutes = 15) {
-    selectEl.innerHTML = '';
-    for (let mins = 0; mins < 24 * 60; mins += stepMinutes) {
-      const hh = String(Math.floor(mins / 60)).padStart(2, '0');
-      const mm = String(mins % 60).padStart(2, '0');
-      const value = `${hh}:${mm}`;
-      const opt = document.createElement('option');
-      opt.value = value;
-      opt.textContent = value;
-      selectEl.appendChild(opt);
-    }
-  }
-
   // Round DateTime to nearest step (15 minutes)
   function roundToStep(dateTime, stepMinutes = 15) {
     const totalMinutes = dateTime.hour * 60 + dateTime.minute;
@@ -67,10 +137,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const mm = String(rounded % 60).padStart(2, '0');
     return `${hh}:${mm}`;
   }
-
-  // Initialize time selects with 15-minute step
-  populateTimeOptions(fld.departure_time, 15);
-  populateTimeOptions(fld.arrival_time, 15);
 
   /* UI wiring */
 
