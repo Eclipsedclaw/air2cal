@@ -7,7 +7,9 @@
   --suggest-bg:#fff;
   --suggest-border:rgba(0,0,0,0.08);
 }
-*{box-sizing:border-box}
+
+*{ box-sizing:border-box }
+
 body{
   font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;
   background:var(--bg);
@@ -15,12 +17,16 @@ body{
   padding:24px;
   color:#111;
 }
+
 .container{
   max-width:980px;
   margin:0 auto;
 }
-h1{margin:0 0 8px}
-#flights{margin-top:12px}
+
+h1{ margin:0 0 8px }
+
+#flights{ margin-top:12px }
+
 .flight-summary{
   background:var(--card);
   border-radius:8px;
@@ -33,13 +39,23 @@ h1{margin:0 0 8px}
   gap:12px;
   align-items:center;
 }
-.flight-summary .meta{flex:1}
-.flight-summary .actions{display:flex;gap:8px}
 
-button{background:var(--accent);color:#fff;border:0;padding:10px 14px;border-radius:8px;cursor:pointer}
-button.secondary{background:#e9e9e9;color:#111}
-button.danger{background:var(--danger)}
-small{color:var(--muted)}
+.flight-summary .meta{ flex:1 }
+.flight-summary .actions{ display:flex; gap:8px }
+
+button{
+  background:var(--accent);
+  color:#fff;
+  border:0;
+  padding:10px 14px;
+  border-radius:8px;
+  cursor:pointer;
+}
+
+button.secondary{ background:#e9e9e9; color:#111 }
+button.danger{ background:var(--danger) }
+
+small{ color:var(--muted) }
 
 .modal-overlay{
   position:fixed;
@@ -50,6 +66,7 @@ small{color:var(--muted)}
   justify-content:center;
   z-index:1000;
 }
+
 .modal{
   width:920px;
   max-width:95%;
@@ -60,15 +77,35 @@ small{color:var(--muted)}
   max-height:90vh;
   overflow:auto;
 }
-.modal h2{margin-top:0}
 
-form label{display:block;margin-bottom:8px}
-form input[type="text"], form input[type="date"], form input[type="time"], form select{
+.modal h2{ margin-top:0 }
+
+form label{
+  display:block;
+  margin-bottom:8px;
+}
+
+/* INPUTS */
+form input[type="text"],
+form input[type="date"],
+form input[type="time"],
+form select{
   width:100%;
   padding:8px;
   border:1px solid #ddd;
   border-radius:6px;
   margin-top:6px;
+}
+
+/* 🔽 OPTION 2 FIX */
+.row{
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+}
+
+.row > label{
+  flex: 0 0 100%;
 }
 
 /* suggestion dropdown */
@@ -84,29 +121,41 @@ form input[type="text"], form input[type="date"], form input[type="time"], form 
   z-index:1010;
   box-shadow: 0 6px 18px rgba(0,0,0,0.08);
 }
-.suggestions[aria-hidden="false"]{ display:block; }
+
+.suggestions[aria-hidden="false"]{ display:block }
+
 .suggestions .suggestion{
   padding:8px 10px;
   cursor:pointer;
   border-bottom:1px solid rgba(0,0,0,0.03);
 }
-.suggestions .suggestion:last-child{ border-bottom: 0; }
+
+.suggestions .suggestion:last-child{ border-bottom:0 }
+
 .suggestions .suggestion:hover,
 .suggestions .suggestion.active{
-  background: #f0f6ff;
+  background:#f0f6ff;
 }
-.suggestion .code{ font-weight:600; margin-right:8px; color:#111; }
-.suggestion .meta{ color:var(--muted); font-size:13px; }
+
+.suggestion .code{
+  font-weight:600;
+  margin-right:8px;
+  color:#111;
+}
+
+.suggestion .meta{
+  color:var(--muted);
+  font-size:13px;
+}
 
 /* make native time input visually consistent */
 input[type="time"]{
-  -webkit-appearance: none;
-  appearance: none;
-  padding-right: 8px;
+  -webkit-appearance:none;
+  appearance:none;
+  padding-right:8px;
 }
 
 /* small-layout helpers */
-.row{display:flex;gap:8px;flex-wrap:wrap}
 .section{
   border:1px solid #f0f0f0;
   padding:10px;
