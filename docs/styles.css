@@ -121,15 +121,19 @@ input[type="time"]{
   justify-content:flex-end;
 }
 
-.actions-wrapper{
+.actions-wrapper {
   display: flex;
-  flex-direction: column; /* stack vertically */
-  gap: 24px;              /* space between sections */
+  flex-direction: column !important; /* FORCE vertical stacking */
+  align-items: flex-start;
 }
 
-.actions-left{
+.actions-left {
   display: flex;
   gap: 12px;
+}
+
+.actions-output {
+  margin-top: 20px; /* pushes Generate well below */
 }
 
 /* Responsive */
