@@ -121,21 +121,15 @@ input[type="time"]{
   justify-content:flex-end;
 }
 
-/* Actions layout: left column and separated output button */
 .actions-wrapper{
-  display:flex;
-  gap:24px;
-  align-items:flex-start;
-  margin-top:12px;
+  display: flex;
+  flex-direction: column; /* stack vertically */
+  gap: 24px;              /* space between sections */
 }
+
 .actions-left{
-  display:flex;
-  flex-direction:column;
-  gap:16px;
-  align-items:flex-start;
-}
-.actions-output{
-  margin-top:36px; /* separated, lower area */
+  display: flex;
+  gap: 12px;
 }
 
 /* Responsive */
