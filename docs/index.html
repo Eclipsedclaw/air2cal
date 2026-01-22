@@ -14,14 +14,21 @@
 <body>
   <main class="container">
     <h1>Air2Cal Flight Calendar Generator</h1>
-    <p>Click "Add flight" to enter flight details. Start typing an airport code, city or airport name and pick from suggestions.</p>
+    <p>Click "Save first flight" to save the inline flight form. After saving the first flight, you can add more flights with "Add flight".</p>
 
     <div id="flights" aria-live="polite"></div>
 
-    <div class="actions">
-      <button id="addFlight">+ Add flight</button>
-      <button id="generate">Generate .ics</button>
-      <a id="downloadLink" style="display:none"></a>
+    <!-- Actions layout: left column (Save / Add) and separated lower output (Generate) -->
+    <div class="actions-wrapper">
+      <div class="actions-left">
+        <button id="saveFirstTop">Save first flight</button>
+        <button id="addFlight" disabled>+ Add flight</button>
+      </div>
+
+      <div class="actions-output">
+        <button id="generate">Generate .ics</button>
+        <a id="downloadLink" style="display:none"></a>
+      </div>
     </div>
 
 <details open style="margin-top:12px">

@@ -6,8 +6,9 @@ const DateTime = luxon.DateTime;
   This script loads docs/airports.json (if available), builds a Fuse index
   and provides suggestion dropdowns for airport inputs (code, city, name).
 
-  Change: ensure city is included in the Fuse index and search weighting so
-  searches by city (e.g. "New York", "Honolulu") are considered.
+  Change: inline-first flight form is saved via the top-level "Save first flight"
+  button. The top-level "+ Add flight" button remains disabled until the first
+  flight is saved.
 */
 
 // Small fallback if airports.json cannot be loaded
@@ -286,12 +287,100 @@ document.addEventListener('DOMContentLoaded', () => {
   attachSuggestions(fld.departure_airport, document.getElementById('departure_suggestions'));
   attachSuggestions(fld.arrival_airport, document.getElementById('arrival_suggestions'));
 
+  // Top-level controls
+  const addFlightBtn = document.getElementById('addFlight');
+  const generateBtn = document.getElementById('generate');
+  const saveFirstTopBtn = document.getElementById('saveFirstTop');
+
+  // Initial state: Add flight disabled until first flight saved
+  if (addFlightBtn) addFlightBtn.disabled = true;
+
   // Wire UI buttons
-  document.getElementById('addFlight').addEventListener('click', openModalForNew);
+  if (addFlightBtn) addFlightBtn.addEventListener('click', openModalForNew);
   document.getElementById('cancelFlight').addEventListener('click', closeModal);
   document.getElementById('saveFlight').addEventListener('click', () => saveFlight(false));
   document.getElementById('saveAndAddAnother').addEventListener('click', () => saveFlight(true));
-  document.getElementById('generate').addEventListener('click', generateIcs);
+  if (generateBtn) generateBtn.addEventListener('click', generateIcs);
+
+  // Save-first-top: gather values from inline form inputs and save the placeholder flight
+  if (saveFirstTopBtn) {
+    saveFirstTopBtn.addEventListener('click', () => {
+      // Locate inline inputs by their IDs (renderFlights sets these IDs when rendering the placeholder)
+      const inpFlightNum = document.getElementById('inline_flight_number');
+      const inpPassenger = document.getElementById('inline_passenger_name');
+      const depInput = document.getElementById('inline_departure_airport');
+      const depTz = document.getElementById('inline_departure_timezone');
+      const depDate = document.getElementById('inline_departure_date');
+      const depTime = document.getElementById('inline_departure_time');
+      const arrInput = document.getElementById('inline_arrival_airport');
+      const arrTz = document.getElementById('inline_arrival_timezone');
+      const arrDate = document.getElementById('inline_arrival_date');
+      const arrTime = document.getElementById('inline_arrival_time');
+      const seatInp = document.getElementById('inline_seat');
+      const classInp = document.getElementById('inline_class');
+      const bagInp = document.getElementById('inline_baggage');
+
+      if (!inpFlightNum || !inpPassenger || !depInput || !depDate || !depTime || !arrInput || !arrDate || !arrTime) {
+        alert('Please fill the first flight form on the page before saving.');
+        return;
+      }
+
+      const flight_number = inpFlightNum.value.trim();
+      const passenger_name = inpPassenger.value.trim();
+      const departure_airport = extractCode(depInput.value.trim());
+      const departure_timezone = (depTz && depTz.value.trim()) || (AIRPORTS[departure_airport] ? AIRPORTS[departure_airport].tz : '');
+      const departure_date = depDate.value;
+      const departure_time = depTime.value;
+
+      const arrival_airport = extractCode(arrInput.value.trim());
+      const arrival_timezone = (arrTz && arrTz.value.trim()) || (AIRPORTS[arrival_airport] ? AIRPORTS[arrival_airport].tz : '');
+      const arrival_date = arrDate.value;
+      const arrival_time = arrTime.value;
+
+      const seat = seatInp ? seatInp.value.trim() : '';
+      const flight_class = classInp ? classInp.value.trim() : '';
+      const baggage = bagInp ? bagInp.value.trim() : '';
+
+      // validate required fields
+      const missing = [];
+      if (!flight_number) missing.push('Flight number');
+      if (!passenger_name) missing.push('Passenger name');
+      if (!departure_airport || !departure_date || !departure_time) missing.push('Departure airport, date & time');
+      if (!arrival_airport || !arrival_date || !arrival_time) missing.push('Arrival airport, date & time');
+
+      if (missing.length) {
+        alert('Please fill required fields:\n- ' + missing.join('\n- '));
+        return;
+      }
+
+      // validate datetimes with timezone fallback
+      const depCombined = `${departure_date} ${departure_time}`;
+      const arrCombined = `${arrival_date} ${arrival_time}`;
+      const dtDep = DateTime.fromFormat(depCombined, 'yyyy-LL-dd HH:mm', {zone: departure_timezone || (AIRPORTS[departure_airport] ? AIRPORTS[departure_airport].tz : 'UTC')});
+      const dtArr = DateTime.fromFormat(arrCombined, 'yyyy-LL-dd HH:mm', {zone: arrival_timezone || (AIRPORTS[arrival_airport] ? AIRPORTS[arrival_airport].tz : 'UTC')});
+      if (!dtDep.isValid) { alert('Departure date/time is invalid.'); return; }
+      if (!dtArr.isValid) { alert('Arrival date/time is invalid.'); return; }
+
+      // build flight object and replace placeholder (index 0)
+      const flight = {
+        flight_number,
+        passenger_name,
+        departure_airport,
+        departure_timezone: departure_timezone || (AIRPORTS[departure_airport] ? AIRPORTS[departure_airport].tz : 'UTC'),
+        departure_date, departure_time,
+        arrival_airport,
+        arrival_timezone: arrival_timezone || (AIRPORTS[arrival_airport] ? AIRPORTS[arrival_airport].tz : 'UTC'),
+        arrival_date, arrival_time,
+        seat, class: flight_class, baggage,
+        departure_time_combined: depCombined,
+        arrival_time_combined: arrCombined
+      };
+
+      flights[0] = flight;
+      // re-render flights; renderFlights will enable Add flight and update Save-first button
+      renderFlights();
+    });
+  }
 
   // Autofill tz on blur for modal fields
   [fld.departure_airport, fld.arrival_airport].forEach(input => {
@@ -428,7 +517,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     flights.forEach((f, i) => {
       if (i === 0 && f.placeholder) {
-        // Render inline first-flight form (no Edit button)
+        // Render inline first-flight form (no local Save controls — top-level Save used)
         const formWrap = document.createElement('div');
         formWrap.className = 'first-flight-form';
 
@@ -456,17 +545,20 @@ document.addEventListener('DOMContentLoaded', () => {
         inpFlightNum.className = 'ff-flight-number';
         inpFlightNum.placeholder = 'e.g., HA850, NH976';
         inpFlightNum.value = '';
+        inpFlightNum.id = 'inline_flight_number';
 
         const inpPassenger = document.createElement('input');
         inpPassenger.type = 'text';
         inpPassenger.className = 'ff-passenger';
         inpPassenger.placeholder = 'Passenger name';
         inpPassenger.value = '';
+        inpPassenger.id = 'inline_passenger_name';
 
         const depInput = document.createElement('input');
         depInput.type = 'text';
         depInput.className = 'ff-departure-airport airport-input';
         depInput.placeholder = 'e.g., KIX, JFK';
+        depInput.id = 'inline_departure_airport';
 
         const depSugg = document.createElement('div');
         depSugg.className = 'suggestions';
@@ -477,22 +569,26 @@ document.addEventListener('DOMContentLoaded', () => {
         depTz.type = 'text';
         depTz.className = 'ff-departure-tz tz-field';
         depTz.placeholder = 'Departure timezone';
+        depTz.id = 'inline_departure_timezone';
 
         const depDate = document.createElement('input');
         depDate.type = 'date';
         depDate.className = 'ff-departure-date';
         depDate.value = today;
+        depDate.id = 'inline_departure_date';
 
         const depTime = document.createElement('input');
         depTime.type = 'time';
         depTime.className = 'ff-departure-time';
         depTime.step = 900;
         depTime.value = roundedNow;
+        depTime.id = 'inline_departure_time';
 
         const arrInput = document.createElement('input');
         arrInput.type = 'text';
         arrInput.className = 'ff-arrival-airport airport-input';
         arrInput.placeholder = 'e.g., HNL, LAX';
+        arrInput.id = 'inline_arrival_airport';
 
         const arrSugg = document.createElement('div');
         arrSugg.className = 'suggestions';
@@ -503,32 +599,38 @@ document.addEventListener('DOMContentLoaded', () => {
         arrTz.type = 'text';
         arrTz.className = 'ff-arrival-tz tz-field';
         arrTz.placeholder = 'Arrival timezone';
+        arrTz.id = 'inline_arrival_timezone';
 
         const arrDate = document.createElement('input');
         arrDate.type = 'date';
         arrDate.className = 'ff-arrival-date';
         arrDate.value = today;
+        arrDate.id = 'inline_arrival_date';
 
         const arrTime = document.createElement('input');
         arrTime.type = 'time';
         arrTime.className = 'ff-arrival-time';
         arrTime.step = 900;
         arrTime.value = roundedNow;
+        arrTime.id = 'inline_arrival_time';
 
         const seatInp = document.createElement('input');
         seatInp.type = 'text';
         seatInp.className = 'ff-seat';
         seatInp.placeholder = '12A';
+        seatInp.id = 'inline_seat';
 
         const classInp = document.createElement('input');
         classInp.type = 'text';
         classInp.className = 'ff-class';
         classInp.placeholder = 'Economy';
+        classInp.id = 'inline_class';
 
         const bagInp = document.createElement('input');
         bagInp.type = 'text';
         bagInp.className = 'ff-baggage';
         bagInp.placeholder = '1 carry-on, 1 checked';
+        bagInp.id = 'inline_baggage';
 
         // Append layout
         const grid = document.createElement('div');
@@ -568,28 +670,10 @@ document.addEventListener('DOMContentLoaded', () => {
         addFieldset.appendChild(mkLabel('Class (Economy/Business/First)', classInp));
         addFieldset.appendChild(mkLabel('Baggage allowance', bagInp));
 
-        const controls = document.createElement('div');
-        controls.className = 'modal-actions';
-        const saveBtn = document.createElement('button');
-        saveBtn.type = 'button';
-        saveBtn.textContent = 'Save first flight';
-        const saveAddBtn = document.createElement('button');
-        saveAddBtn.type = 'button';
-        saveAddBtn.textContent = 'Save & add another';
-        const cancelBtn = document.createElement('button');
-        cancelBtn.type = 'button';
-        cancelBtn.textContent = 'Keep placeholder';
-        cancelBtn.className = 'secondary';
-
-        controls.appendChild(saveBtn);
-        controls.appendChild(saveAddBtn);
-        controls.appendChild(cancelBtn);
-
         formWrap.appendChild(grid);
         formWrap.appendChild(depFieldset);
         formWrap.appendChild(arrFieldset);
         formWrap.appendChild(addFieldset);
-        formWrap.appendChild(controls);
 
         container.appendChild(formWrap);
 
@@ -607,72 +691,8 @@ document.addEventListener('DOMContentLoaded', () => {
           if (code && AIRPORTS[code]) arrTz.value = AIRPORTS[code].tz || '';
         });
 
-        // Save behavior
-        function collectAndSave(alsoOpenModalForNew) {
-          const flight_number = inpFlightNum.value.trim();
-          const passenger_name = inpPassenger.value.trim();
-          const departure_airport = extractCode(depInput.value.trim());
-          const departure_timezone = depTz.value.trim();
-          const departure_date = depDate.value;
-          const departure_time = depTime.value;
-          const arrival_airport = extractCode(arrInput.value.trim());
-          const arrival_timezone = arrTz.value.trim();
-          const arrival_date = arrDate.value;
-          const arrival_time = arrTime.value;
-          const seat = seatInp.value.trim();
-          const flight_class = classInp.value.trim();
-          const baggage = bagInp.value.trim();
-
-          // validate required fields
-          const missing = [];
-          if (!flight_number) missing.push('Flight number');
-          if (!passenger_name) missing.push('Passenger name');
-          if (!departure_airport || !departure_date || !departure_time) missing.push('Departure airport, date & time');
-          if (!arrival_airport || !arrival_date || !arrival_time) missing.push('Arrival airport, date & time');
-
-          if (missing.length) {
-            alert('Please fill required fields:\n- ' + missing.join('\n- '));
-            return;
-          }
-
-          const depCombined = `${departure_date} ${departure_time}`;
-          const arrCombined = `${arrival_date} ${arrival_time}`;
-          const dtDep = DateTime.fromFormat(depCombined, 'yyyy-LL-dd HH:mm', {zone: departure_timezone || (AIRPORTS[departure_airport] ? AIRPORTS[departure_airport].tz : 'UTC')});
-          const dtArr = DateTime.fromFormat(arrCombined, 'yyyy-LL-dd HH:mm', {zone: arrival_timezone || (AIRPORTS[arrival_airport] ? AIRPORTS[arrival_airport].tz : 'UTC')});
-          if (!dtDep.isValid) { alert('Departure date/time is invalid.'); return; }
-          if (!dtArr.isValid) { alert('Arrival date/time is invalid.'); return; }
-
-          const flight = {
-            flight_number,
-            passenger_name,
-            departure_airport,
-            departure_timezone: departure_timezone || (AIRPORTS[departure_airport] ? AIRPORTS[departure_airport].tz : 'UTC'),
-            departure_date, departure_time,
-            arrival_airport,
-            arrival_timezone: arrival_timezone || (AIRPORTS[arrival_airport] ? AIRPORTS[arrival_airport].tz : 'UTC'),
-            arrival_date, arrival_time,
-            seat, class: flight_class, baggage,
-            departure_time_combined: depCombined,
-            arrival_time_combined: arrCombined
-          };
-
-          // Replace placeholder with real flight
-          flights[i] = flight;
-          renderFlights();
-
-          // Optionally open modal for adding another flight
-          if (alsoOpenModalForNew) {
-            openModalForNew();
-          }
-        }
-
-        saveBtn.addEventListener('click', () => collectAndSave(false));
-        saveAddBtn.addEventListener('click', () => collectAndSave(true));
-        cancelBtn.addEventListener('click', () => {
-          // keep the placeholder — simply re-render to restore summary
-          renderFlights();
-        });
-
+        // Because we removed inline Save controls, top-level Save will be used.
+        // End placeholder rendering
         return; // done rendering for placeholder
       }
 
@@ -703,6 +723,25 @@ document.addEventListener('DOMContentLoaded', () => {
       delBtn.addEventListener('click', () => {
         if (confirm('Remove this flight?')) {
           flights.splice(i, 1);
+          // If we removed the first flight, ensure placeholder exists
+          if (i === 0) {
+            flights.unshift({
+              placeholder: true,
+              flight_number: '(new flight)',
+              passenger_name: '(click Edit)',
+              departure_airport: '',
+              departure_timezone: '',
+              departure_date: today,
+              departure_time: roundedNow,
+              arrival_airport: '',
+              arrival_timezone: '',
+              arrival_date: today,
+              arrival_time: roundedNow,
+              seat: '',
+              class: '',
+              baggage: ''
+            });
+          }
           renderFlights();
         }
       });
@@ -712,13 +751,25 @@ document.addEventListener('DOMContentLoaded', () => {
       item.appendChild(actions);
       container.appendChild(item);
     });
+
+    // Update top-level button states:
+    // Add flight enabled only when first flight exists and is not a placeholder
+    const addBtn = document.getElementById('addFlight');
+    const saveFirstTop = document.getElementById('saveFirstTop');
+    if (addBtn) {
+      addBtn.disabled = !(flights[0] && !flights[0].placeholder);
+    }
+    // disable top-level save if first flight already saved
+    if (saveFirstTop) {
+      saveFirstTop.disabled = (flights[0] && !flights[0].placeholder);
+    }
   }
 
   function generateIcs() {
     try {
       const hasPlaceholder = flights.some(f => f.placeholder === true);
       if (hasPlaceholder) {
-        alert('Please fill in the first flight before exporting. Fill the first flight form on the page.');
+        alert('Please fill in the first flight before exporting. Fill the first flight form on the page and click "Save first flight".');
         return;
       }
 

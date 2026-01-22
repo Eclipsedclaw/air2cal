@@ -121,10 +121,29 @@ input[type="time"]{
   justify-content:flex-end;
 }
 
+/* Actions layout: left column and separated output button */
+.actions-wrapper{
+  display:flex;
+  gap:24px;
+  align-items:flex-start;
+  margin-top:12px;
+}
+.actions-left{
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+  align-items:flex-start;
+}
+.actions-output{
+  margin-top:36px; /* separated, lower area */
+}
+
 /* Responsive */
 @media (max-width:600px){
   .modal{ padding:12px; }
   .row{ flex-direction:column; }
+  .actions-wrapper{ flex-direction:column; gap:12px; }
+  .actions-output{ margin-top:12px; }
 }
 
 /* Minimal, non-invasive styles for the inline "first flight" form.
