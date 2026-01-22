@@ -5,6 +5,9 @@ const DateTime = luxon.DateTime;
 /*
   This script loads docs/airports.json (if available), builds a Fuse index
   and provides suggestion dropdowns for airport inputs (code, city, name).
+
+  Change: ensure city is included in the Fuse index and search weighting so
+  searches by city (e.g. "New York", "Honolulu") are considered.
 */
 
 // Small fallback if airports.json cannot be loaded
@@ -54,6 +57,7 @@ async function loadAirportsJson(options = {useLocalStorage: true}) {
 
 // Prepare Fuse.js index
 function initFuse() {
+  // Build list including city explicitly
   FUSE_LIST = Object.entries(AIRPORTS).map(([code, info]) => ({
     code,
     name: info.name || '',
@@ -61,15 +65,15 @@ function initFuse() {
     tz: info.tz || ''
   }));
 
-  // Configure Fuse: search code (exact/startsWith) and fuzzy on name/city
+  // Configure Fuse: code (higher weight), name and city (fuzzy)
   const options = {
     includeScore: true,
     shouldSort: true,
-    threshold: 0.35, // smaller threshold = stricter match (tweakable)
+    threshold: 0.35, // adjust if results are too loose/strict
     keys: [
       { name: 'code', weight: 0.6 },
-      { name: 'name', weight: 0.3 },
-      { name: 'city', weight: 0.3 }
+      { name: 'name', weight: 0.25 },
+      { name: 'city', weight: 0.25 }
     ],
     useExtendedSearch: true
   };
@@ -86,7 +90,6 @@ function initFuse() {
 function extractCode(input) {
   if (!input) return '';
   const s = input.trim();
-  // pattern: "JFK — ..." or "JFK - ..." or starts with code
   const m = s.match(/^([A-Za-z]{3,4})\b/);
   if (m) return m[1].toUpperCase();
   if (s.includes('—')) return s.split('—')[0].trim().toUpperCase();
@@ -119,7 +122,6 @@ function attachSuggestions(inputEl, suggContainer) {
       el.innerHTML = `<span class="code">${escapeHtml(it.code)}</span>
                       <span class="meta">${escapeHtml(it.city || '')}${it.city ? ' — ' : ''}${escapeHtml(it.name || '')}</span>`;
       el.addEventListener('mousedown', (e) => {
-        // use mousedown so input doesn't lose focus before click
         e.preventDefault();
         selectSuggestion(idx);
       });
@@ -138,7 +140,6 @@ function attachSuggestions(inputEl, suggContainer) {
     const it = currentItems[idx];
     if (!it) return;
     inputEl.value = `${it.code} — ${it.city}${it.name ? ` (${it.name})` : ''}`;
-    // trigger timezone autofill
     const tzField = inputEl.id.includes('departure') ? document.getElementById('departure_timezone') : document.getElementById('arrival_timezone');
     if (tzField && it.tz) tzField.value = it.tz;
     hideSuggestions();
@@ -148,31 +149,38 @@ function attachSuggestions(inputEl, suggContainer) {
   function onInput() {
     const q = inputEl.value.trim();
     if (!q) { hideSuggestions(); return; }
-    // First, if q looks like an exact code, show that as top result
+
+    // If query looks like an exact code, surface it first
     const codeCandidate = extractCode(q);
     const exact = AIRPORTS[codeCandidate];
     let results = [];
     if (exact) {
       results.push({ code: codeCandidate, name: exact.name, city: exact.city, tz: exact.tz });
     }
-    // Fuse search for other matches
+
+    // Fuse search will now consider city as well
     if (FUSE && q.length >= 1) {
-      const fuseResults = FUSE.search(q, {limit: 10});
+      // Use Fuse over FUSE_LIST; Fuse will match code, name, city
+      const fuseResults = FUSE.search(q, {limit: 12});
       for (const r of fuseResults) {
         const item = r.item;
         if (item.code === codeCandidate) continue;
         results.push(item);
-        if (results.length >= 8) break;
+        if (results.length >= 10) break;
       }
     } else {
+      // fallback substring match including city
       const lowered = q.toLowerCase();
       for (const item of FUSE_LIST) {
-        if (item.code.toLowerCase().includes(lowered) || item.name.toLowerCase().includes(lowered) || item.city.toLowerCase().includes(lowered)) {
+        if (item.code.toLowerCase().startsWith(lowered)
+            || item.name.toLowerCase().includes(lowered)
+            || item.city.toLowerCase().includes(lowered)) {
           if (!results.find(r => r.code === item.code)) results.push(item);
-          if (results.length >= 8) break;
+          if (results.length >= 10) break;
         }
       }
     }
+
     showSuggestions(results);
   }
 
@@ -210,7 +218,6 @@ function attachSuggestions(inputEl, suggContainer) {
     }
   }
 
-  // close suggestions when clicking outside
   document.addEventListener('click', (ev) => {
     if (!suggContainer.contains(ev.target) && ev.target !== inputEl) hideSuggestions();
   });
@@ -219,7 +226,7 @@ function attachSuggestions(inputEl, suggContainer) {
 // small escape for innerHTML usage
 function escapeHtml(s){ return (s||'').toString().replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
-// rest of the UI logic (modal, saving, ICS building) follows previous structure
+// rest of the UI logic (modal, saving, ICS building)
 document.addEventListener('DOMContentLoaded', () => {
   // load airports and build fuse index
   loadAirportsJson().catch(() => { initFuse(); });
@@ -229,7 +236,6 @@ document.addEventListener('DOMContentLoaded', () => {
   let editingIndex = null;
 
   // Create one default placeholder flight so the UI always shows a first flight input.
-  // This placeholder forces the user to edit the first flight before exporting.
   const today = DateTime.now().toISODate();
   const roundedNow = roundToStep(DateTime.now(), 15);
   flights.push({
@@ -274,14 +280,14 @@ document.addEventListener('DOMContentLoaded', () => {
   attachSuggestions(fld.departure_airport, document.getElementById('departure_suggestions'));
   attachSuggestions(fld.arrival_airport, document.getElementById('arrival_suggestions'));
 
-  // Wire UI buttons (same as before)
+  // Wire UI buttons
   document.getElementById('addFlight').addEventListener('click', openModalForNew);
   document.getElementById('cancelFlight').addEventListener('click', closeModal);
   document.getElementById('saveFlight').addEventListener('click', () => saveFlight(false));
   document.getElementById('saveAndAddAnother').addEventListener('click', () => saveFlight(true));
   document.getElementById('generate').addEventListener('click', generateIcs);
 
-  // Also autofill tz on blur if user typed only a code
+  // Autofill tz on blur if user typed only a code
   [fld.departure_airport, fld.arrival_airport].forEach(input => {
     input.addEventListener('blur', (e) => {
       const code = extractCode(e.target.value);
@@ -294,7 +300,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Modal functions & rest of logic (saveFlight, renderFlights, buildICS, etc.)
   function openModalForNew() {
-    // Add new flight entries only start from the second one (first is placeholder)
     editingIndex = null;
     modalTitle.textContent = 'Add Flight';
     flightForm.reset();
@@ -385,10 +390,8 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     if (editingIndex === null) {
-      // adding new (second+ flights)
       flights.push(flight);
     } else {
-      // replacing existing (including the initial placeholder)
       flights[editingIndex] = flight;
     }
 
@@ -418,7 +421,6 @@ document.addEventListener('DOMContentLoaded', () => {
       meta.className = 'meta';
 
       if (f.placeholder) {
-        // show instructive placeholder
         meta.innerHTML = `<strong style="opacity:.9">First flight (required)</strong><br>
                           <small style="color:var(--muted)">Click <em>Edit</em> to enter the first flight's details.</small>`;
       } else {
@@ -437,7 +439,6 @@ document.addEventListener('DOMContentLoaded', () => {
       editBtn.addEventListener('click', () => openModalForEdit(i));
       actions.appendChild(editBtn);
 
-      // allow removing only non-placeholder flights
       if (!f.placeholder) {
         const delBtn = document.createElement('button');
         delBtn.textContent = 'Remove';
@@ -459,7 +460,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function generateIcs() {
     try {
-      // ensure first placeholder has been filled
       const hasPlaceholder = flights.some(f => f.placeholder === true);
       if (hasPlaceholder) {
         alert('Please fill in the first flight before exporting. Click Edit on the first flight.');
