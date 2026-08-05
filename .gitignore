@@ -1,0 +1,9 @@
+*.zip
+*.bak
+fp-info-cache
+*.kicad_sch-bak
+how-to-import.htm
+License.txt
+*.gbr
+*.lck
+*.ics
